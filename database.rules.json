@@ -66,6 +66,12 @@
             ".validate": "newData.val() == 'accept' || newData.val() == 'pass'"
           }
         },
+        "photos": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('a').val()).val() == 'accept' && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('b').val()).val() == 'accept'",
+            ".validate": "newData.isString() && newData.val().beginsWith('data:image/') && newData.val().length <= 80000"
+          }
+        },
         "names": {
           "$uid": {
             ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('a').val()).val() == 'accept' && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('b').val()).val() == 'accept'",
