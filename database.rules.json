@@ -1,0 +1,92 @@
+{
+  // Firebase 콘솔 > Realtime Database > 규칙 탭에 통째로 붙여넣고 "게시"를 누른다.
+  "rules": {
+    "queue": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$uid": {
+        ".validate": "newData.hasChildren(['nick', 'age', 'gender', 'answers', 'at']) && newData.child('nick').isString() && newData.child('nick').val().length <= 20 && newData.child('age').isNumber() && (newData.child('gender').val() == 'm' || newData.child('gender').val() == 'f')"
+      }
+    },
+
+    // 매칭 신청: requests/{받는 사람}/{보낸 사람}. 보낸 사람이 만들고 지울 수 있고, 받은 사람은 지우기(거절)만
+    "requests": {
+      "$to": {
+        ".read": "auth != null && auth.uid == $to",
+        ".write": "auth != null && auth.uid == $to && !newData.exists()",
+        "$from": {
+          ".read": "auth != null && auth.uid == $from",
+          ".write": "auth != null && ((auth.uid == $from) || (auth.uid == $to && !newData.exists()))",
+          ".validate": "newData.hasChildren(['nick', 'age', 'score', 'at']) && newData.child('nick').isString() && newData.child('nick').val().length <= 20"
+        }
+      }
+    },
+
+    "match": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && ((auth.uid == $uid && !newData.exists()) || (newData.isString() && root.child('rooms').child(newData.val()).child('a').val() == auth.uid && root.child('rooms').child(newData.val()).child('b').val() == $uid))"
+      }
+    },
+
+    "rooms": {
+      "$room": {
+        ".read": "auth != null && (data.child('a').val() == auth.uid || data.child('b').val() == auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('a').val() == auth.uid) || (data.exists() && !newData.exists() && (data.child('a').val() == auth.uid || data.child('b').val() == auth.uid)))",
+        // 만들 때 decide(바로 성사)를 같이 넣는 건 상대가 나에게 신청했을 때만
+        ".validate": "newData.hasChildren(['a', 'b', 'at', 'profiles']) && (data.exists() || !newData.child('decide').exists() || root.child('requests').child(auth.uid).child(newData.child('b').val()).exists())",
+
+        "msgs": {
+          "$msg": {
+            ".write": "auth != null && !data.exists() && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid)",
+            ".validate": "newData.hasChildren(['uid', 'text', 'at']) && newData.child('uid').val() == auth.uid && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 500 && newData.child('at').val() == now && newData.parent().parent().parent().parent().child('rate').child(auth.uid).val() == now"
+          }
+        },
+        "typing": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid)",
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "joined": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid)",
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "left": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid)",
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "decide": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid)",
+            ".validate": "newData.val() == 'accept' || newData.val() == 'pass'"
+          }
+        },
+        "names": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('a').val()).val() == 'accept' && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('b').val()).val() == 'accept'",
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20"
+          }
+        }
+      }
+    },
+
+    "rate": {
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "newData.val() == now && (!data.exists() || now - data.val() >= 300)"
+      }
+    },
+
+    "reports": {
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.child('by').val() == auth.uid",
+        ".validate": "newData.hasChildren(['by', 'target', 'reason'])"
+      }
+    }
+  }
+}
