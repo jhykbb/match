@@ -5,10 +5,10 @@
 //   queue/{uid}            짝을 기다리는 사람 (닉네임, 나이, 성별, 설문 답, at=이번 5분 시작, busy=신청 보내는 중)
 //   requests/{받는}/{보낸}  매칭 신청
 //   match/{uid}            짝이 정해지면 상대가 여기에 방 id를 넣어 준다
-//   rooms/{id}             a, b, at, score, mode(auto|request), profiles, decide, names, msgs, typing, joined, left
+//   rooms/{id}             a, b, at, score, mode(auto|request), profiles, decide, names, photos, msgs, typing, joined, left
 //   rate/{uid}             마지막으로 보낸 시각 (도배 방지)
 //   reports/{id}           신고 (콘솔에서만 볼 수 있다)
-// 실명은 둘 다 승낙한 뒤에야 rooms/{id}/names에 올라간다. 그 전에는 내 기기에만 있다.
+// 실명과 프로필 사진은 둘 다 승낙한 뒤에야 rooms/{id}/names, photos에 올라간다. 그 전에는 내 기기에만 있다.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signInAnonymously,
@@ -297,7 +297,8 @@ export function search(profile, handlers) {
 }
 
 // 방에 들어간다.
-// handlers: onMessage(msg), onTyping(bool), onPartnerLeft(), onDecision({ mine, theirs }), onPartnerName(name)
+// handlers: onMessage(msg), onTyping(bool), onPartnerLeft(), onDecision({ mine, theirs }),
+//           onPartnerName(name), onPartnerPhoto(dataUrl)
 export async function openRoom(roomId, handlers) {
   const base = `rooms/${roomId}`;
   const room = (await get(ref(db, base))).val();
@@ -341,6 +342,9 @@ export async function openRoom(roomId, handlers) {
   offs.push(onValue(ref(db, `${base}/names/${partnerUid}`), snap => {
     if (snap.val()) handlers.onPartnerName(snap.val());
   }));
+  offs.push(onValue(ref(db, `${base}/photos/${partnerUid}`), snap => {
+    if (snap.val()) handlers.onPartnerPhoto(snap.val());
+  }));
   offs.push(onValue(ref(db, `${base}/joined/${partnerUid}`), snap => {
     if (!snap.val()) return;
     partnerJoined = true;
@@ -381,6 +385,10 @@ export async function openRoom(roomId, handlers) {
 
     async revealName(name) {
       await set(ref(db, `${base}/names/${uid}`), name);
+    },
+
+    async revealPhoto(photo) {
+      await set(ref(db, `${base}/photos/${uid}`), photo);
     },
 
     async report(reason) {

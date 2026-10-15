@@ -28,6 +28,7 @@ const state = {
   blocked: loadJson(BLOCKED_KEY, {}),
   history: loadJson(HISTORY_KEY, {}),   // 이미 만난 사람·거절한 사람. 다시 이어지지 않는다
   step: 0,
+  photo: null,       // 기본 정보 화면에서 고르는 중인 사진
 
   search: null,      // store.search가 돌려준 controller
   queue: {},         // 지금 기다리는 사람들
@@ -76,6 +77,55 @@ function profileValid(p) {
   return !!p && !!p.nick && !!p.name && Number.isInteger(p.age) && (p.gender === 'm' || p.gender === 'f');
 }
 
+// 프로필 사진. 사진이 없으면 카톡·인스타처럼 사람 모양 기본 이미지
+const DEFAULT_AVATAR = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="11" fill="var(--avatar-fg)"/><path d="M11 56c2-11 10.5-17 21-17s19 6 21 17" fill="var(--avatar-fg)"/></svg>';
+const PHOTO_SIZE = 160;
+
+function isPhoto(src) {
+  return typeof src === 'string' && src.startsWith('data:image/');
+}
+
+function setAvatar(el, src) {
+  if (isPhoto(src)) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = src;
+    el.replaceChildren(img);
+  } else {
+    el.innerHTML = DEFAULT_AVATAR;
+  }
+}
+
+function avatar(size, src) {
+  const el = document.createElement('div');
+  el.className = `avatar ${size}`;
+  setAvatar(el, src);
+  return el;
+}
+
+// 고른 사진을 가운데 정사각형으로 잘라 작게 줄인다 (서버에 글자로 저장하니 작아야 한다)
+async function shrinkPhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = url;
+    });
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = PHOTO_SIZE;
+    canvas.getContext('2d').drawImage(
+      img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side,
+      0, 0, PHOTO_SIZE, PHOTO_SIZE,
+    );
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function fmt(ms) {
   const sec = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
@@ -97,8 +147,33 @@ $('resume-btn').addEventListener('click', startSearch);
 
 // ---------- 기본 정보 ----------
 
+function showPhoto() {
+  setAvatar($('photo-btn'), state.photo);
+  $('photo-clear').hidden = !isPhoto(state.photo);
+}
+
+$('photo-btn').addEventListener('click', () => $('photo-input').click());
+$('photo-input').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    state.photo = await shrinkPhoto(file);
+    showPhoto();
+  } catch (err) {
+    console.error(err);
+    toast('이 사진은 쓸 수 없어요. 다른 사진을 골라 주세요.');
+  }
+});
+$('photo-clear').addEventListener('click', () => {
+  state.photo = null;
+  showPhoto();
+});
+
 function showProfile() {
   const p = state.profile || {};
+  state.photo = p.photo || null;
+  showPhoto();
   $('nick-input').value = p.nick || '';
   $('name-input').value = p.name || '';
   $('age-input').value = p.age || '';
@@ -122,7 +197,7 @@ $('profile-form').addEventListener('submit', e => {
   if (!name) return toast('이름을 적어 주세요.');
   if (!Number.isInteger(age) || age < CONFIG.minAge || age > CONFIG.maxAge) return toast('나이를 확인해 주세요.');
   if (!gender) return toast('성별을 골라 주세요.');
-  state.profile = { nick, name, age, gender };
+  state.profile = { nick, name, age, gender, photo: isPhoto(state.photo) ? state.photo : null };
   saveJson(PROFILE_KEY, state.profile);
   state.step = 0;
   showStep();
@@ -257,6 +332,7 @@ function candidateCard(c, index) {
   const rank = document.createElement('span');
   rank.className = 'rank';
   rank.textContent = index + 1;
+  const face = avatar('md');
   const info = document.createElement('div');
   info.className = 'info';
   const nick = document.createElement('strong');
@@ -273,7 +349,7 @@ function candidateCard(c, index) {
   button.className = 'btn primary';
   button.textContent = '신청';
   button.addEventListener('click', () => requestTo(c));
-  card.append(rank, info, pct, button);
+  card.append(rank, face, info, pct, button);
   return card;
 }
 
@@ -387,6 +463,9 @@ function addMessage({ text, mine }) {
 function resultCard(room) {
   const card = document.createElement('div');
   card.className = 'result';
+  const face = avatar('lg');
+  face.id = 'result-avatar';
+  card.append(face);
   const score = document.createElement('div');
   score.className = 'score';
   score.append(String(room.score));
@@ -426,6 +505,7 @@ async function enterRoom(roomId) {
   messagesEl.replaceChildren();
   $('partner-nick').textContent = '연결 중…';
   $('partner-sub').textContent = '';
+  setAvatar($('partner-avatar'));
   $('timer').hidden = true;
   setFooter('none');
   show('chat');
@@ -455,6 +535,12 @@ async function enterRoom(roomId) {
       onDecision: decision => {
         state.decision = decision;
         applyDecision();
+      },
+      onPartnerPhoto: src => {
+        if (!isPhoto(src)) return;
+        setAvatar($('partner-avatar'), src);
+        const face = $('result-avatar');
+        if (face) setAvatar(face, src);
       },
       onPartnerName: name => {
         addSystem(`상대의 이름은 "${name}"이에요 💕`, true);
@@ -545,6 +631,7 @@ function applyDecision() {
     setFooter('chat');
     addSystem('🎉 매칭 성사! 이제 대화해 보세요', true);
     state.room.revealName(state.profile.name).catch(err => console.error(err));
+    if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
     $('msg-input').focus();
   } else if (mine === 'accept') {
     showDecideBar(true);

@@ -302,6 +302,7 @@ export async function openRoom(roomId, handlers) {
   let partnerTyping = false;
   let partnerJoined = false;
   let partnerName = null;
+  let partnerPhoto = null;
   let decision = '';
   let ended = false;
   let closed = false;
@@ -336,6 +337,8 @@ export async function openRoom(roomId, handlers) {
     }
     const name = get(`${base}/names/${partnerUid}`);
     if (name && name !== partnerName) handlers.onPartnerName(partnerName = name);
+    const photo = get(`${base}/photos/${partnerUid}`);
+    if (photo && photo !== partnerPhoto) handlers.onPartnerPhoto(partnerPhoto = photo);
 
     if (get(`${base}/joined/${partnerUid}`)) partnerJoined = true;
     if (get(`${base}/left/${partnerUid}`) || (partnerJoined && !isAlive(partnerUid))) end();
@@ -368,6 +371,12 @@ export async function openRoom(roomId, handlers) {
     async revealName(name) {
       if (get(`${base}/decide/${uid}`) === 'accept' && get(`${base}/decide/${partnerUid}`) === 'accept') {
         set(`${base}/names/${uid}`, name);
+      }
+    },
+
+    async revealPhoto(photo) {
+      if (get(`${base}/decide/${uid}`) === 'accept' && get(`${base}/decide/${partnerUid}`) === 'accept') {
+        set(`${base}/photos/${uid}`, photo);
       }
     },
 
