@@ -684,7 +684,7 @@ function applyDecision() {
     $('timer').hidden = true;
     setFooter('chat');
     addSystem('🎉 매칭 성사! 이제 대화해 보세요', true);
-    notify('🎉 매칭 성사!', '서로 승낙했어요. 이제 대화해 보세요.');
+    // 성사 알람은 띄우지 않는다. 운영진이 매니저 페이지의 번호로 직접 문자한다
     state.room.revealName(state.profile.name).catch(err => console.error(err));
     if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
     const { nick, name, phone, age, gender } = state.profile;

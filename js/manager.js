@@ -99,6 +99,14 @@ function confirmButton(text, confirmText, className, onConfirm) {
   return b;
 }
 
+// 전화번호를 누르면 폰 문자 앱이 그 번호로 열린다
+function phoneLink(phone) {
+  const a = el('a', 'm-phone', `💬 ${phone}`);
+  a.href = `sms:${String(phone).replace(/\D/g, '')}`;
+  a.addEventListener('click', ev => ev.stopPropagation());
+  return a;
+}
+
 function fmtWait(ms) {
   const sec = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
@@ -326,7 +334,8 @@ function fillPerson(id) {
   setAvatar($('person-avatar'), info.photo);
   $('person-avatar').className = `avatar xl-static m-face ${e.gender || ''}`;
   $('person-name').textContent = info.name ? `${info.name} (${maskBadWords(e.nick || '익명')})` : maskBadWords(e.nick || '익명');
-  $('person-sub').textContent = `${GENDER[e.gender] || '?'} · ${e.age}살` + (info.phone ? ` · 📞 ${info.phone}` : '');
+  $('person-sub').textContent = `${GENDER[e.gender] || '?'} · ${e.age}살`;
+  if (info.phone) $('person-sub').append(' · ', phoneLink(info.phone));
   $('person-status').textContent = `${waitStatus(e)} · 대기 ${fmtWait(now() - (e.at || now()))}`;
 
   // 기준으로 고른 사람이 따로 있으면 그 사람과의 궁합
@@ -476,7 +485,7 @@ function renderCouples() {
       line.append(
         el('span', `m-gender ${p.gender}`, GENDER[p.gender] || '?'),
         el('strong', '', p.name || '이름 없음'),
-        el('span', 'm-phone', p.phone ? `📞 ${p.phone}` : ''),
+        p.phone ? phoneLink(p.phone) : el('span'),
         el('span', 'muted', `${maskBadWords(p.nick || '')} · ${p.age}살`),
       );
       row.append(line);
