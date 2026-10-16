@@ -150,7 +150,7 @@ small.muted { font-size: 12px; font-weight: 400; }
   font-size: 14px;
 }
 
-input[type="text"], input[type="password"], input[type="number"] {
+input[type="text"], input[type="password"], input[type="number"], input[type="tel"] {
   width: 100%;
   font: inherit;
   color: var(--text);
@@ -709,3 +709,5 @@ body.manager #m-main { padding-bottom: 150px; }
 @media (prefers-reduced-motion: reduce) {
   .alarm, .alarm-card { animation: none; }
 }
+
+.m-phone { font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
