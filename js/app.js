@@ -74,8 +74,15 @@ function toast(text) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+// 전화번호: 숫자만 남겨 010-1234-5678 꼴로. 휴대폰 번호(01로 시작, 10~11자리)가 아니면 빈 값
+function formatPhone(text) {
+  const d = String(text || '').replace(/\D/g, '');
+  if (!/^01\d{8,9}$/.test(d)) return '';
+  return d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 function profileValid(p) {
-  return !!p && !!p.nick && !!p.name && Number.isInteger(p.age)
+  return !!p && !!p.nick && !!p.name && !!formatPhone(p.phone) && Number.isInteger(p.age)
     && p.age >= CONFIG.minAge && p.age <= CONFIG.maxAge && (p.gender === 'm' || p.gender === 'f');
 }
 
@@ -86,6 +93,7 @@ function saveProfileDraft() {
     ...(state.profile || {}),
     nick: $('nick-input').value.trim().slice(0, CONFIG.nickMaxLength),
     name: $('name-input').value.trim().slice(0, CONFIG.nameMaxLength),
+    phone: $('phone-input').value.trim().slice(0, 20),
     age: Number.isInteger(age) && age > 0 ? age : null,
     gender: document.querySelector('input[name="gender"]:checked')?.value || null,
     photo: isPhoto(state.photo) ? state.photo : null,
@@ -198,6 +206,7 @@ function showProfile() {
   showPhoto();
   $('nick-input').value = p.nick || '';
   $('name-input').value = p.name || '';
+  $('phone-input').value = p.phone || '';
   $('age-input').value = p.age || '';
   for (const radio of document.querySelectorAll('input[name="gender"]')) radio.checked = radio.value === p.gender;
   show('profile');
@@ -217,9 +226,11 @@ $('profile-form').addEventListener('submit', e => {
   if (!nick) return toast('닉네임을 적어 주세요.');
   if (hasBadWords(nick)) return toast('닉네임에 쓸 수 없는 말이 있어요.');
   if (!name) return toast('이름을 적어 주세요.');
+  const phone = formatPhone($('phone-input').value);
+  if (!phone) return toast('전화번호를 확인해 주세요. (예: 010-1234-5678)');
   if (!Number.isInteger(age) || age < CONFIG.minAge || age > CONFIG.maxAge) return toast('나이를 확인해 주세요.');
   if (!gender) return toast('성별을 골라 주세요.');
-  state.profile = { nick, name, age, gender, photo: isPhoto(state.photo) ? state.photo : null };
+  state.profile = { nick, name, phone, age, gender, photo: isPhoto(state.photo) ? state.photo : null };
   saveJson(PROFILE_KEY, state.profile);
   // 설문을 하다 나갔으면 안 푼 문항부터, 다 풀었으면(다시 하기) 처음부터
   const next = STEPS.findIndex(step => !step.options.includes(state.answers[step.key]));
@@ -269,8 +280,8 @@ $('survey-back').addEventListener('click', () => {
 // ---------- 짝 찾기 ----------
 
 function myProfile(uid) {
-  const { nick, name, age, gender, photo } = state.profile;
-  return { uid, nick, name, age, gender, photo, answers: state.answers, blocked: state.blocked, history: state.history };
+  const { nick, name, phone, age, gender, photo } = state.profile;
+  return { uid, nick, name, phone, age, gender, photo, answers: state.answers, blocked: state.blocked, history: state.history };
 }
 
 function startSearch() {
@@ -676,8 +687,8 @@ function applyDecision() {
     notify('🎉 매칭 성사!', '서로 승낙했어요. 이제 대화해 보세요.');
     state.room.revealName(state.profile.name).catch(err => console.error(err));
     if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
-    const { nick, name, age, gender } = state.profile;
-    state.room.recordCouple({ nick, name, age, gender }).catch(err => console.error(err));
+    const { nick, name, phone, age, gender } = state.profile;
+    state.room.recordCouple({ nick, name, phone: phone || '', age, gender }).catch(err => console.error(err));
     $('msg-input').focus();
   } else if (mine === 'accept') {
     showDecideBar(true);

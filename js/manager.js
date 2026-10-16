@@ -326,7 +326,7 @@ function fillPerson(id) {
   setAvatar($('person-avatar'), info.photo);
   $('person-avatar').className = `avatar xl-static m-face ${e.gender || ''}`;
   $('person-name').textContent = info.name ? `${info.name} (${maskBadWords(e.nick || '익명')})` : maskBadWords(e.nick || '익명');
-  $('person-sub').textContent = `${GENDER[e.gender] || '?'} · ${e.age}살`;
+  $('person-sub').textContent = `${GENDER[e.gender] || '?'} · ${e.age}살` + (info.phone ? ` · 📞 ${info.phone}` : '');
   $('person-status').textContent = `${waitStatus(e)} · 대기 ${fmtWait(now() - (e.at || now()))}`;
 
   // 기준으로 고른 사람이 따로 있으면 그 사람과의 궁합
@@ -476,6 +476,7 @@ function renderCouples() {
       line.append(
         el('span', `m-gender ${p.gender}`, GENDER[p.gender] || '?'),
         el('strong', '', p.name || '이름 없음'),
+        el('span', 'm-phone', p.phone ? `📞 ${p.phone}` : ''),
         el('span', 'muted', `${maskBadWords(p.nick || '')} · ${p.age}살`),
       );
       row.append(line);

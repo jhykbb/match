@@ -204,6 +204,7 @@ export function search(profile, handlers) {
     await onDisconnect(privateRef).remove();
     await set(privateRef, {
       name: profile.name || '',
+      phone: profile.phone || '',
       ...(typeof profile.photo === 'string' && profile.photo.startsWith('data:image/') ? { photo: profile.photo } : {}),
     }).catch(err => console.warn('매니저용 정보 저장 실패', err));
     await set(queueMeRef, {
