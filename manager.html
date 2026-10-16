@@ -101,6 +101,27 @@
     </form>
   </dialog>
 
+  <!-- 프로필 자세히 -->
+  <dialog id="dlg-person" class="dialog person-dialog">
+    <form method="dialog">
+      <div class="person-top">
+        <div id="person-avatar" class="avatar xl-static"></div>
+        <div>
+          <p id="person-name" class="dlg-title"></p>
+          <p id="person-sub" class="muted"></p>
+          <p id="person-status" class="muted"></p>
+        </div>
+      </div>
+      <div id="person-match" class="person-match" hidden></div>
+      <div id="person-answers" class="person-answers"></div>
+      <div class="row">
+        <button id="person-pick" class="btn ghost" type="button">고르기</button>
+        <button id="person-edit" class="btn ghost" type="button">수정</button>
+        <button class="btn primary" value="close">닫기</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status"></div>
 
   <script type="module" src="js/manager.js"></script>

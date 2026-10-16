@@ -14,6 +14,14 @@
       }
     },
 
+    "private": {
+      ".read": "auth != null && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()",
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length <= 20 && (!newData.child('photo').exists() || (newData.child('photo').isString() && newData.child('photo').val().beginsWith('data:image/') && newData.child('photo').val().length <= 80000))"
+      }
+    },
+
     "queue": {
       ".read": "auth != null",
       ".write": "auth != null",
