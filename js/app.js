@@ -267,8 +267,8 @@ $('survey-back').addEventListener('click', () => {
 // ---------- 짝 찾기 ----------
 
 function myProfile(uid) {
-  const { nick, age, gender } = state.profile;
-  return { uid, nick, age, gender, answers: state.answers, blocked: state.blocked, history: state.history };
+  const { nick, name, age, gender, photo } = state.profile;
+  return { uid, nick, name, age, gender, photo, answers: state.answers, blocked: state.blocked, history: state.history };
 }
 
 function startSearch() {

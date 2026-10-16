@@ -9,7 +9,7 @@ import {
   getDatabase, ref, get, set, update, remove, push, onValue, runTransaction, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 import { CONFIG } from './config.js';
-import { compatibility, maskBadWords } from './common.js';
+import { compatibility, maskBadWords, matchReasons, surveySteps } from './common.js';
 
 const $ = id => document.getElementById(id);
 const app = initializeApp(CONFIG.firebase);
@@ -18,6 +18,23 @@ const db = getDatabase(app);
 
 const SEARCH_MS = CONFIG.searchMinutes * 60000;
 const GENDER = { m: '남', f: '여' };
+const STEPS = surveySteps();
+const DEFAULT_AVATAR = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="11" fill="var(--avatar-fg)"/><path d="M11 56c2-11 10.5-17 21-17s19 6 21 17" fill="var(--avatar-fg)"/></svg>';
+
+function isPhoto(src) {
+  return typeof src === 'string' && src.startsWith('data:image/');
+}
+
+function setAvatar(node, src) {
+  if (isPhoto(src)) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = src;
+    node.replaceChildren(img);
+  } else {
+    node.innerHTML = DEFAULT_AVATAR;
+  }
+}
 
 let uid = null;
 let serverOffset = 0;
@@ -25,11 +42,13 @@ const now = () => Date.now() + serverOffset;
 
 const state = {
   queue: {},
+  private: {},       // 대기 중인 사람의 실명·사진
   rooms: {},
   couples: {},
   reports: {},
-  selected: [],      // 강제 매칭하려고 고른 uid (최대 2명)
+  selected: [],      // 강제 매칭하려고 고른 uid (최대 2명). 첫 번째가 기준
   editing: null,     // 수정 중인 uid
+  viewing: null,     // 프로필 자세히 보는 uid
   started: false,
 };
 
@@ -115,27 +134,54 @@ function waitStatus(entry) {
   return waited < SEARCH_MS ? '💗 80% 찾는 중' : '📋 후보 고르는 중';
 }
 
+// 한 명을 고르면(기준) 그 사람은 맨 위, 나머지는 기준과의 궁합 높은 순. 이성이 먼저 온다
+function sortedQueue() {
+  const entries = Object.entries(state.queue).filter(([, e]) => e && !e.kicked);
+  const anchorId = state.selected[0];
+  const anchor = anchorId && state.queue[anchorId];
+  if (!anchor) {
+    return entries
+      .sort(([, x], [, y]) => (x.at || 0) - (y.at || 0))
+      .map(([id, e]) => ({ id, e, score: null }));
+  }
+  const rest = entries
+    .filter(([id]) => id !== anchorId)
+    .map(([id, e]) => ({ id, e, score: compatibility(anchor.answers, e.answers), other: e.gender !== anchor.gender }))
+    .sort((x, y) => (y.other - x.other) || (y.score - x.score) || ((x.e.at || 0) - (y.e.at || 0)));
+  return [{ id: anchorId, e: anchor, score: null, anchor: true }, ...rest];
+}
+
+function avatarButton(id, e) {
+  const face = el('button', `avatar md m-face ${e.gender || ''}`);
+  face.type = 'button';
+  face.setAttribute('aria-label', `${e.nick} 프로필 자세히`);
+  setAvatar(face, state.private[id]?.photo);
+  face.addEventListener('click', ev => {
+    ev.stopPropagation();
+    openPerson(id);
+  });
+  return face;
+}
+
 function renderQueue() {
-  const entries = Object.entries(state.queue)
-    .filter(([, e]) => e && !e.kicked)
-    .sort(([, x], [, y]) => (x.at || 0) - (y.at || 0));
   state.selected = state.selected.filter(id => state.queue[id] && !state.queue[id].kicked);
+  const entries = Object.entries(state.queue).filter(([, e]) => e && !e.kicked);
 
   $('cnt-m').textContent = entries.filter(([, e]) => e.gender === 'm').length;
   $('cnt-f').textContent = entries.filter(([, e]) => e.gender === 'f').length;
   $('queue-empty').hidden = entries.length > 0;
 
-  $('queue-list').replaceChildren(...entries.map(([id, e]) => {
-    const row = el('div', 'm-row' + (state.selected.includes(id) ? ' on' : ''));
+  $('queue-list').replaceChildren(...sortedQueue().map(({ id, e, score, anchor }) => {
+    const row = el('div', 'm-row' + (state.selected.includes(id) ? ' on' : '') + (anchor ? ' anchor' : ''));
     const pick = el('input');
     pick.type = 'checkbox';
     pick.checked = state.selected.includes(id);
     pick.setAttribute('aria-label', `${e.nick} 고르기`);
     pick.addEventListener('change', () => toggleSelect(id));
 
-    const g = el('span', `m-gender ${e.gender}`, GENDER[e.gender] || '?');
+    const g = avatarButton(id, e);
     const info = el('div', 'm-info');
-    info.append(el('strong', '', `${maskBadWords(e.nick || '익명')} · ${e.age}살`));
+    info.append(el('strong', '', `${maskBadWords(e.nick || '익명')} · ${GENDER[e.gender] || '?'} ${e.age}살`));
     const sub = el('span', 'muted');
     sub.dataset.since = e.at || 0;
     sub.dataset.status = waitStatus(e);
@@ -147,7 +193,12 @@ function renderQueue() {
       button('수정', 'ghost small-btn', () => openEdit(id)),
       confirmButton('내보내기', '정말?', 'ghost small-btn danger-text', () => kick(id)),
     );
-    row.append(pick, g, info, actions);
+    const pct = anchor ? el('span', 'm-pct base', '기준')
+      : score === null ? null
+      : el('span', 'm-pct' + (score >= CONFIG.autoMatchScore ? ' high' : ''), `${score}%`);
+    row.append(pick, g, info);
+    if (pct) row.append(pct);
+    row.append(actions);
     row.addEventListener('click', e2 => {
       if (e2.target === row || e2.target === info || info.contains(e2.target)) toggleSelect(id);
     });
@@ -158,7 +209,8 @@ function renderQueue() {
 
 function toggleSelect(id) {
   if (state.selected.includes(id)) state.selected = state.selected.filter(x => x !== id);
-  else state.selected = [...state.selected, id].slice(-2);
+  else if (state.selected.length < 2) state.selected = [...state.selected, id];
+  else state.selected = [state.selected[0], id];   // 기준(첫 번째)은 두고 상대만 바꾼다
   renderQueue();
 }
 
@@ -253,6 +305,74 @@ async function kick(id) {
     toast('내보내지 못했어요. 이미 나갔을 수 있어요.');
   }
 }
+
+// ---------- 프로필 자세히 ----------
+
+function openPerson(id) {
+  if (!state.queue[id]) return;
+  state.viewing = id;
+  fillPerson(id);
+  $('dlg-person').showModal();
+}
+
+function fillPerson(id) {
+  const e = state.queue[id];
+  if (!e) {
+    $('dlg-person').close();
+    toast('그사이 대기열에서 나갔어요.');
+    return;
+  }
+  const info = state.private[id] || {};
+  setAvatar($('person-avatar'), info.photo);
+  $('person-avatar').className = `avatar xl-static m-face ${e.gender || ''}`;
+  $('person-name').textContent = info.name ? `${info.name} (${maskBadWords(e.nick || '익명')})` : maskBadWords(e.nick || '익명');
+  $('person-sub').textContent = `${GENDER[e.gender] || '?'} · ${e.age}살`;
+  $('person-status').textContent = `${waitStatus(e)} · 대기 ${fmtWait(now() - (e.at || now()))}`;
+
+  // 기준으로 고른 사람이 따로 있으면 그 사람과의 궁합
+  const anchorId = state.selected[0];
+  const anchor = anchorId && anchorId !== id ? state.queue[anchorId] : null;
+  $('person-match').hidden = !anchor;
+  if (anchor) {
+    const reasons = matchReasons(anchor.answers, e.answers);
+    $('person-match').replaceChildren(
+      el('strong', '', `${maskBadWords(anchor.nick)}님과 궁합 ${compatibility(anchor.answers, e.answers)}%`),
+      el('p', 'muted', reasons.length ? reasons.join(' · ') : '겹치는 취향이 없어요.'),
+    );
+  }
+
+  // 설문 답 (분류별로)
+  const groups = [];
+  for (const step of STEPS) {
+    let group = groups.find(g => g.name === step.group);
+    if (!group) groups.push(group = { name: step.group, items: [] });
+    group.items.push(step);
+  }
+  $('person-answers').replaceChildren(...groups.map(group => {
+    const box = el('div', 'person-group');
+    box.append(el('p', 'person-group-name', group.name || '기타'));
+    for (const step of group.items) {
+      const line = el('div', 'person-line');
+      line.append(el('span', 'muted', step.title), el('strong', '', e.answers?.[step.key] || '—'));
+      box.append(line);
+    }
+    return box;
+  }));
+
+  $('person-pick').textContent = state.selected.includes(id) ? '고르기 취소' : '고르기';
+}
+
+$('person-pick').addEventListener('click', () => {
+  const id = state.viewing;
+  $('dlg-person').close();
+  if (id) toggleSelect(id);
+});
+$('person-edit').addEventListener('click', () => {
+  const id = state.viewing;
+  $('dlg-person').close();
+  if (id) openEdit(id);
+});
+$('dlg-person').addEventListener('close', () => { state.viewing = null; });
 
 // ---------- 정보 수정 ----------
 
@@ -442,6 +562,11 @@ function start() {
   onValue(ref(db, 'queue'), snap => {
     state.queue = snap.val() || {};
     renderQueue();
+  }, lostAccess);
+  onValue(ref(db, 'private'), snap => {
+    state.private = snap.val() || {};
+    renderQueue();
+    if (state.viewing) fillPerson(state.viewing);
   }, lostAccess);
   onValue(ref(db, 'rooms'), snap => {
     state.rooms = snap.val() || {};

@@ -10,6 +10,7 @@
 //   reports/{id}           신고 (매니저 페이지에서 본다)
 //   couples/{방}/{uid}      성사된 커플 기록 (매니저만 읽는다)
 //   admins/{uid}, adminKey  매니저 비밀번호. adminKey는 콘솔에서만 넣는다
+//   private/{uid}          대기 중인 사람의 실명·프로필 사진. 매니저만 읽고, 대기열에서 나가면 지운다
 // 실명과 프로필 사진은 둘 다 승낙한 뒤에야 rooms/{id}/names, photos에 올라간다. 그 전에는 내 기기에만 있다.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
@@ -104,6 +105,7 @@ export function search(profile, handlers) {
   const me = { uid, ...profile };
   const queueMeRef = ref(db, `queue/${uid}`);
   const incomingRef = ref(db, `requests/${uid}`);
+  const privateRef = ref(db, `private/${uid}`);
   let queue = {};
   let offs = [];
   let timer = null;
@@ -128,8 +130,10 @@ export function search(profile, handlers) {
     clearOutgoing();
     remove(queueMeRef).catch(() => {});
     remove(incomingRef).catch(() => {});   // 받은 신청은 모두 거절로 처리된다
+    remove(privateRef).catch(() => {});
     onDisconnect(queueMeRef).cancel();
     onDisconnect(incomingRef).cancel();
+    onDisconnect(privateRef).cancel();
   };
 
   const token = { onMatched: handlers.onMatched, stop };
@@ -197,6 +201,11 @@ export function search(profile, handlers) {
   (async () => {
     await onDisconnect(queueMeRef).remove();
     await onDisconnect(incomingRef).remove();
+    await onDisconnect(privateRef).remove();
+    await set(privateRef, {
+      name: profile.name || '',
+      ...(typeof profile.photo === 'string' && profile.photo.startsWith('data:image/') ? { photo: profile.photo } : {}),
+    }).catch(err => console.warn('매니저용 정보 저장 실패', err));
     await set(queueMeRef, {
       ...publicProfile(me),
       blocked: profile.blocked || {},
