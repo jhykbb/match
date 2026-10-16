@@ -470,8 +470,21 @@ $('login-form').addEventListener('submit', async e => {
   e.preventDefault();
   const button = e.target.querySelector('button');
   button.disabled = true;
+  const typed = $('login-input').value.trim();
+  // 콘솔에서 숫자만 넣으면 adminKey가 숫자로 저장된다. 글자로 먼저 해 보고, 숫자면 숫자로도 해 본다
+  const tries = /^\d+$/.test(typed) ? [typed, Number(typed)] : [typed];
   try {
-    await set(ref(db, `admins/${uid}`), $('login-input').value);
+    let ok = false;
+    for (const value of tries) {
+      try {
+        await set(ref(db, `admins/${uid}`), value);
+        ok = true;
+        break;
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+    if (!ok) throw new Error('wrong password');
     $('login-input').value = '';
     start();
   } catch (err) {
