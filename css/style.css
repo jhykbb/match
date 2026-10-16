@@ -670,3 +670,42 @@ body.manager #m-main { padding-bottom: 150px; }
 .person-line span { flex: 1; min-width: 0; }
 .person-line strong { text-align: right; }
 .person-dialog .row { flex-wrap: wrap; }
+
+/* 매칭 알람: 화면 전체를 덮고 깜빡인다 */
+.alarm {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(232, 87, 138, 0.92);
+  animation: alarm-flash 0.8s ease-in-out infinite alternate;
+}
+@keyframes alarm-flash {
+  from { background: rgba(232, 87, 138, 0.95); }
+  to { background: rgba(255, 196, 214, 0.95); }
+}
+.alarm-card {
+  width: min(360px, 100%);
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 28px 22px 22px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(120, 20, 60, 0.35);
+  animation: alarm-shake 0.6s ease-in-out infinite;
+}
+@keyframes alarm-shake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(-2deg) scale(1.02); }
+  40% { transform: rotate(2deg) scale(1.02); }
+  60% { transform: rotate(-1deg); }
+}
+.alarm-icon { font-size: 72px; line-height: 1; margin-bottom: 10px; }
+.alarm-title { margin: 0 0 8px; font-size: 26px; font-weight: 900; color: var(--accent); }
+.alarm-body { margin: 0 0 20px; font-size: 16px; color: var(--text); word-break: keep-all; }
+.alarm-ok { width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .alarm, .alarm-card { animation: none; }
+}
