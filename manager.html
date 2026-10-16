@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>매니저</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="manager">
+  <main id="app">
+    <section id="m-loading" class="screen center">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="muted">불러오는 중…</p>
+    </section>
+
+    <!-- 로그인 -->
+    <section id="m-login" class="screen center" hidden>
+      <div class="card">
+        <div class="hero" aria-hidden="true">🛠️</div>
+        <h1 class="logo">매니저</h1>
+        <p class="muted">운영자 비밀번호를 넣어 주세요.</p>
+        <form id="login-form" class="stack">
+          <input id="login-input" type="password" autocomplete="current-password" placeholder="비밀번호" required>
+          <button class="btn primary" type="submit">들어가기</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 대시보드 -->
+    <section id="m-main" class="screen" hidden>
+      <header class="m-head">
+        <h1>매니저</h1>
+        <p class="muted">대기 남 <b id="cnt-m">0</b> · 여 <b id="cnt-f">0</b> · 진행 중 <b id="cnt-rooms">0</b> · 성사 <b id="cnt-couples">0</b></p>
+      </header>
+
+      <nav class="m-tabs" role="tablist">
+        <button class="m-tab on" data-tab="queue" type="button">대기 중</button>
+        <button class="m-tab" data-tab="rooms" type="button">매칭 진행</button>
+        <button class="m-tab" data-tab="couples" type="button">매칭 성사</button>
+        <button class="m-tab" data-tab="reports" type="button">신고 <span id="cnt-reports" class="m-badge" hidden></span></button>
+      </nav>
+
+      <!-- 대기 중 -->
+      <div id="tab-queue" class="m-panel">
+        <p class="muted m-hint">두 명을 골라 강제 매칭할 수 있어요. 강제 매칭돼도 둘 다 승낙해야 이름이 공개돼요.</p>
+        <div id="queue-list" class="m-list"></div>
+        <p id="queue-empty" class="muted m-empty">기다리는 사람이 없어요.</p>
+      </div>
+
+      <!-- 매칭 진행 (승낙/넘기기 고르는 중, 대화 중) -->
+      <div id="tab-rooms" class="m-panel" hidden>
+        <div id="rooms-list" class="m-list"></div>
+        <p id="rooms-empty" class="muted m-empty">진행 중인 매칭이 없어요.</p>
+      </div>
+
+      <!-- 매칭 성사 -->
+      <div id="tab-couples" class="m-panel" hidden>
+        <div id="couples-list" class="m-list"></div>
+        <p id="couples-empty" class="muted m-empty">아직 성사된 커플이 없어요.</p>
+      </div>
+
+      <!-- 신고 -->
+      <div id="tab-reports" class="m-panel" hidden>
+        <div id="reports-list" class="m-list"></div>
+        <p id="reports-empty" class="muted m-empty">신고가 없어요.</p>
+      </div>
+
+      <!-- 두 명을 골랐을 때 -->
+      <div id="pair-bar" class="m-pair" hidden>
+        <p id="pair-text" class="m-pair-text"></p>
+        <p id="pair-warn" class="m-pair-warn" hidden></p>
+        <div class="row">
+          <button id="pair-clear" class="btn ghost" type="button">선택 취소</button>
+          <button id="pair-go" class="btn primary" type="button">💘 강제 매칭</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 정보 수정 -->
+  <dialog id="dlg-edit" class="dialog">
+    <form method="dialog" id="edit-form">
+      <p class="dlg-title">정보 수정</p>
+      <p class="muted">지금 대기 중인 동안만 바뀌고, 그 사람 폰에도 바로 반영돼요.</p>
+      <div class="stack">
+        <label class="field"><span>닉네임</span><input id="edit-nick" type="text" maxlength="12" required></label>
+        <label class="field"><span>나이</span><input id="edit-age" type="number" inputmode="numeric" required></label>
+        <div class="field">
+          <span>성별</span>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="edit-gender" value="m"><span>남자</span></label>
+            <label><input type="radio" name="edit-gender" value="f"><span>여자</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn ghost" value="cancel" formnovalidate>취소</button>
+        <button class="btn primary" value="save">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script type="module" src="js/manager.js"></script>
+</body>
+</html>

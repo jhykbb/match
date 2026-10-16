@@ -1,6 +1,19 @@
 {
   // Firebase 콘솔 > Realtime Database > 규칙 탭에 통째로 붙여넣고 "게시"를 누른다.
   "rules": {
+    // 매니저 비밀번호: 콘솔 > 데이터에서 adminKey에 직접 넣는다 (아무도 읽을 수 없다)
+    "adminKey": {
+      ".read": false,
+      ".write": false
+    },
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "root.child('adminKey').exists() && newData.val() === root.child('adminKey').val()"
+      }
+    },
+
     "queue": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -25,14 +38,15 @@
     "match": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && ((auth.uid == $uid && !newData.exists()) || (newData.isString() && root.child('rooms').child(newData.val()).child('a').val() == auth.uid && root.child('rooms').child(newData.val()).child('b').val() == $uid))"
+        ".write": "auth != null && ((auth.uid == $uid && !newData.exists()) || (newData.isString() && root.child('rooms').child(newData.val()).child('a').val() == auth.uid && root.child('rooms').child(newData.val()).child('b').val() == $uid) || (newData.isString() && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()))"
       }
     },
 
     "rooms": {
+      ".read": "auth != null && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()",
       "$room": {
         ".read": "auth != null && (data.child('a').val() == auth.uid || data.child('b').val() == auth.uid)",
-        ".write": "auth != null && ((!data.exists() && newData.child('a').val() == auth.uid) || (data.exists() && !newData.exists() && (data.child('a').val() == auth.uid || data.child('b').val() == auth.uid)))",
+        ".write": "auth != null && ((!data.exists() && newData.child('a').val() == auth.uid) || (data.exists() && !newData.exists() && (data.child('a').val() == auth.uid || data.child('b').val() == auth.uid)) || (root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()))",
         // 만들 때 decide(바로 성사)를 같이 넣는 건 상대가 나에게 신청했을 때만
         ".validate": "newData.hasChildren(['a', 'b', 'at', 'profiles']) && (data.exists() || !newData.child('decide').exists() || root.child('requests').child(auth.uid).child(newData.child('b').val()).exists())",
 
@@ -88,7 +102,20 @@
       }
     },
 
+    "couples": {
+      ".read": "auth != null && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()",
+      ".write": "auth != null && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()",
+      "$room": {
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid && !data.exists() && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('a').val()).val() == 'accept' && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('b').val()).val() == 'accept'",
+          ".validate": "newData.hasChildren(['nick', 'name', 'age', 'gender'])"
+        }
+      }
+    },
+
     "reports": {
+      ".read": "auth != null && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()",
+      ".write": "auth != null && root.child('adminKey').exists() && root.child('admins').child(auth.uid).val() === root.child('adminKey').val()",
       "$id": {
         ".write": "auth != null && !data.exists() && newData.child('by').val() == auth.uid",
         ".validate": "newData.hasChildren(['by', 'target', 'reason'])"
