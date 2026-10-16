@@ -639,3 +639,34 @@ body.manager #m-main { padding-bottom: 150px; }
 .m-pair-warn.block { color: var(--danger); }
 .m-pair .row { display: flex; gap: 8px; }
 .m-pair .row .btn { flex: 1; }
+
+/* 매니저: 프로필 사진(테두리 색 = 성별), 궁합 %, 프로필 자세히 */
+.m-face { cursor: pointer; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--line); }
+.m-face.m { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px #4a8fe0; }
+.m-face.f { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px #e8578a; }
+.m-row.anchor { background: var(--accent-soft); }
+.m-pct {
+  flex: none;
+  min-width: 46px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--muted);
+}
+.m-pct.high { color: var(--accent); }
+.m-pct.base { font-size: 12px; color: var(--accent); }
+.person-dialog { width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 40px); }
+.person-top { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.person-top .dlg-title { margin: 0 0 2px; }
+.person-top p { margin: 0; }
+.avatar.xl-static { --size: 84px; }
+.person-match { background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
+.person-match strong { color: var(--accent); }
+.person-match p { margin: 4px 0 0; font-size: 13px; }
+.person-answers { display: flex; flex-direction: column; gap: 10px; max-height: 46dvh; overflow-y: auto; }
+.person-group { background: var(--bg); border-radius: 12px; padding: 8px 12px; }
+.person-group-name { margin: 0 0 4px; font-size: 12px; font-weight: 800; color: var(--accent); }
+.person-line { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; }
+.person-line span { flex: 1; min-width: 0; }
+.person-line strong { text-align: right; }
+.person-dialog .row { flex-wrap: wrap; }
