@@ -268,6 +268,16 @@ function startSearch() {
       endSearchUi();
       enterRoom(roomId);
     },
+    onSelfEdited: changes => {
+      state.profile = { ...state.profile, ...changes };
+      saveJson(PROFILE_KEY, state.profile);
+      toast('운영자가 내 정보를 고쳤어요.');
+    },
+    onKicked: () => {
+      endSearchUi();
+      toast('운영자가 대기열에서 내보냈어요.');
+      showIntro();
+    },
     onError: err => {
       endSearchUi();
       toast(err.message);
@@ -474,9 +484,10 @@ function resultCard(room) {
   score.append(pct);
   const who = document.createElement('p');
   who.className = 'who';
-  who.textContent = room.mode === 'request'
-    ? `${maskBadWords(room.partner.nick)}님과 매칭됐어요!`
-    : `${maskBadWords(room.partner.nick)}님과 궁합이 잘 맞아요!`;
+  const nick = maskBadWords(room.partner.nick);
+  who.textContent = room.mode === 'request' ? `${nick}님과 매칭됐어요!`
+    : room.mode === 'admin' ? `운영자가 ${nick}님과 이어 줬어요!`
+    : `${nick}님과 궁합이 잘 맞아요!`;
   // 잘 맞는 점이 많으면 몇 개만 보여 주고 나머지는 개수로
   const reasons = matchReasons(room.me.answers, room.partner.answers);
   const shown = reasons.slice(0, RESULT_REASONS);
@@ -574,7 +585,7 @@ async function enterRoom(roomId) {
   messagesEl.prepend(resultCard(room));
   messagesEl.scrollTop = 0;
 
-  if (room.mode === 'auto') {
+  if (room.mode !== 'request') {
     showDecideBar(false);
     startProposeTimer();
   }
@@ -585,7 +596,9 @@ function showDecideBar(waiting) {
   setFooter('decide');
   $('decide-text').textContent = waiting
     ? '승낙했어요! 상대의 선택을 기다리는 중…'
-    : `궁합 ${CONFIG.autoMatchScore}% 이상인 상대를 찾았어요! 둘 다 승낙하면 대화가 시작돼요.`;
+    : state.room?.mode === 'admin'
+      ? '운영자가 짝을 이어 줬어요! 둘 다 승낙하면 대화가 시작돼요.'
+      : `궁합 ${CONFIG.autoMatchScore}% 이상인 상대를 찾았어요! 둘 다 승낙하면 대화가 시작돼요.`;
   $('accept-btn').hidden = waiting;
   $('pass-btn').textContent = waiting ? '넘기기로 바꾸기' : '넘기기';
   $('pass-btn').disabled = false;
@@ -632,6 +645,8 @@ function applyDecision() {
     addSystem('🎉 매칭 성사! 이제 대화해 보세요', true);
     state.room.revealName(state.profile.name).catch(err => console.error(err));
     if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
+    const { nick, name, age, gender } = state.profile;
+    state.room.recordCouple({ nick, name, age, gender }).catch(err => console.error(err));
     $('msg-input').focus();
   } else if (mine === 'accept') {
     showDecideBar(true);

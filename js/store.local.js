@@ -374,6 +374,8 @@ export async function openRoom(roomId, handlers) {
       }
     },
 
+    async recordCouple() {},
+
     async revealPhoto(photo) {
       if (get(`${base}/decide/${uid}`) === 'accept' && get(`${base}/decide/${partnerUid}`) === 'accept') {
         set(`${base}/photos/${uid}`, photo);

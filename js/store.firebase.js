@@ -7,7 +7,9 @@
 //   match/{uid}            짝이 정해지면 상대가 여기에 방 id를 넣어 준다
 //   rooms/{id}             a, b, at, score, mode(auto|request), profiles, decide, names, photos, msgs, typing, joined, left
 //   rate/{uid}             마지막으로 보낸 시각 (도배 방지)
-//   reports/{id}           신고 (콘솔에서만 볼 수 있다)
+//   reports/{id}           신고 (매니저 페이지에서 본다)
+//   couples/{방}/{uid}      성사된 커플 기록 (매니저만 읽는다)
+//   admins/{uid}, adminKey  매니저 비밀번호. adminKey는 콘솔에서만 넣는다
 // 실명과 프로필 사진은 둘 다 승낙한 뒤에야 rooms/{id}/names, photos에 올라간다. 그 전에는 내 기기에만 있다.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
@@ -196,7 +198,7 @@ export function search(profile, handlers) {
     await onDisconnect(queueMeRef).remove();
     await onDisconnect(incomingRef).remove();
     await set(queueMeRef, {
-      ...publicProfile(profile),
+      ...publicProfile(me),
       blocked: profile.blocked || {},
       history: profile.history || {},
       at: serverTimestamp(),
@@ -207,6 +209,21 @@ export function search(profile, handlers) {
     }
     offs.push(onValue(ref(db, 'queue'), snap => {
       queue = snap.val() || {};
+      const mine = queue[uid];
+      // 매니저가 대기열에서 내보냈다
+      if (mine?.kicked) {
+        searching = null;
+        stop();
+        handlers.onKicked?.();
+        return;
+      }
+      // 매니저가 닉네임·나이·성별을 고쳤다
+      if (mine && (mine.nick !== me.nick || mine.age !== me.age || mine.gender !== me.gender)) {
+        me.nick = mine.nick;
+        me.age = mine.age;
+        me.gender = mine.gender;
+        handlers.onSelfEdited?.({ nick: me.nick, age: me.age, gender: me.gender });
+      }
       handlers.onQueue(queue);
       tryMatch().catch(fail);
     }));
@@ -232,7 +249,7 @@ export function search(profile, handlers) {
       await update(queueMeRef, { busy: true });
       const reqRef = ref(db, `requests/${to}/${uid}`);
       await onDisconnect(reqRef).remove();
-      await set(reqRef, { ...publicProfile(profile), score, at: serverTimestamp() });
+      await set(reqRef, { ...publicProfile(me), score, at: serverTimestamp() });
 
       return new Promise(resolve => {
         let seen = false;
@@ -389,6 +406,11 @@ export async function openRoom(roomId, handlers) {
 
     async revealPhoto(photo) {
       await set(ref(db, `${base}/photos/${uid}`), photo);
+    },
+
+    // 성사 기록 (매니저 페이지에서 본다). 대화방이 지워져도 남는다
+    async recordCouple(info) {
+      await set(ref(db, `couples/${roomId}/${uid}`), { ...info, score: room.score ?? 0, at: serverTimestamp() });
     },
 
     async report(reason) {
