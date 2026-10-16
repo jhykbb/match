@@ -9,6 +9,7 @@ import {
   surveySteps, surveyComplete, matchReasons, rankCandidates, maskBadWords, hasBadWords,
 } from './common.js';
 import * as store from './store.js';
+import { setupNotifications, primeNotifications, notify } from './notify.js';
 
 const $ = id => document.getElementById(id);
 const PROFILE_KEY = 'match-profile';
@@ -74,7 +75,22 @@ function toast(text) {
 }
 
 function profileValid(p) {
-  return !!p && !!p.nick && !!p.name && Number.isInteger(p.age) && (p.gender === 'm' || p.gender === 'f');
+  return !!p && !!p.nick && !!p.name && Number.isInteger(p.age)
+    && p.age >= CONFIG.minAge && p.age <= CONFIG.maxAge && (p.gender === 'm' || p.gender === 'f');
+}
+
+// 기본 정보는 고르거나 적는 즉시 저장한다. "다음"을 누르기 전에 나가거나 튕겨도 사진·닉네임이 남는다
+function saveProfileDraft() {
+  const age = Number($('age-input').value);
+  state.profile = {
+    ...(state.profile || {}),
+    nick: $('nick-input').value.trim().slice(0, CONFIG.nickMaxLength),
+    name: $('name-input').value.trim().slice(0, CONFIG.nameMaxLength),
+    age: Number.isInteger(age) && age > 0 ? age : null,
+    gender: document.querySelector('input[name="gender"]:checked')?.value || null,
+    photo: isPhoto(state.photo) ? state.photo : null,
+  };
+  saveJson(PROFILE_KEY, state.profile);
 }
 
 // 프로필 사진. 사진이 없으면 카톡·인스타처럼 사람 모양 기본 이미지
@@ -160,6 +176,7 @@ $('photo-input').addEventListener('change', async e => {
   try {
     state.photo = await shrinkPhoto(file);
     showPhoto();
+    saveProfileDraft();
   } catch (err) {
     console.error(err);
     toast('이 사진은 쓸 수 없어요. 다른 사진을 골라 주세요.');
@@ -168,7 +185,10 @@ $('photo-input').addEventListener('change', async e => {
 $('photo-clear').addEventListener('click', () => {
   state.photo = null;
   showPhoto();
+  saveProfileDraft();
 });
+$('profile-form').addEventListener('input', saveProfileDraft);
+$('profile-form').addEventListener('change', saveProfileDraft);
 
 function showProfile() {
   const p = state.profile || {};
@@ -199,7 +219,9 @@ $('profile-form').addEventListener('submit', e => {
   if (!gender) return toast('성별을 골라 주세요.');
   state.profile = { nick, name, age, gender, photo: isPhoto(state.photo) ? state.photo : null };
   saveJson(PROFILE_KEY, state.profile);
-  state.step = 0;
+  // 설문을 하다 나갔으면 안 푼 문항부터, 다 풀었으면(다시 하기) 처음부터
+  const next = STEPS.findIndex(step => !step.options.includes(state.answers[step.key]));
+  state.step = next === -1 ? 0 : next;
   showStep();
 });
 
@@ -251,6 +273,7 @@ function myProfile(uid) {
 
 function startSearch() {
   if (!profileValid(state.profile) || !surveyComplete(state.answers)) return showIntro();
+  primeNotifications();
   stopSearch();
   state.queue = {};
   state.candKey = '';
@@ -404,6 +427,7 @@ function renderIncoming() {
   }
   if (state.shownIncoming === req.from) return;
   state.shownIncoming = req.from;
+  notify('💌 매칭 신청이 왔어요!', `${maskBadWords(req.nick || '익명')}님이 신청했어요. 1분 안에 답해 주세요.`);
   $('incoming-nick').textContent = maskBadWords(req.nick || '익명');
   $('incoming-age').textContent = req.age;
   $('incoming-score').textContent = req.score ?? 0;
@@ -588,6 +612,7 @@ async function enterRoom(roomId) {
   if (room.mode !== 'request') {
     showDecideBar(false);
     startProposeTimer();
+    notify('💘 매칭됐어요!', `${maskBadWords(room.partner.nick)}님과 궁합 ${room.score}%! 승낙할지 골라 주세요.`);
   }
   applyDecision();
 }
@@ -643,6 +668,7 @@ function applyDecision() {
     $('timer').hidden = true;
     setFooter('chat');
     addSystem('🎉 매칭 성사! 이제 대화해 보세요', true);
+    notify('🎉 매칭 성사!', '서로 승낙했어요. 이제 대화해 보세요.');
     state.room.revealName(state.profile.name).catch(err => console.error(err));
     if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
     const { nick, name, age, gender } = state.profile;
@@ -788,6 +814,7 @@ function afterEnter() {
 
 async function main() {
   document.title = CONFIG.siteTitle || '💘';
+  setupNotifications();
   const fill = (attr, value) => {
     for (const el of document.querySelectorAll(`[${attr}]`)) el.textContent = value;
   };
