@@ -9,7 +9,7 @@ import {
   surveySteps, surveyComplete, matchReasons, rankCandidates, maskBadWords, hasBadWords,
 } from './common.js';
 import * as store from './store.js';
-import { setupNotifications, primeNotifications, notify } from './notify.js';
+import { setupNotifications, primeNotifications, notify, stopAlarm, keepScreenOn } from './notify.js';
 
 const $ = id => document.getElementById(id);
 const PROFILE_KEY = 'match-profile';
@@ -150,6 +150,8 @@ function fmt(ms) {
 // ---------- 처음 화면 ----------
 
 function showIntro() {
+  stopAlarm();
+  keepScreenOn(false);
   const ready = profileValid(state.profile) && surveyComplete(state.answers);
   $('start-btn').hidden = ready;
   $('resume-btn').hidden = !ready;
@@ -274,6 +276,7 @@ function myProfile(uid) {
 function startSearch() {
   if (!profileValid(state.profile) || !surveyComplete(state.answers)) return showIntro();
   primeNotifications();
+  keepScreenOn(true);   // 기다리는 동안 화면이 꺼지면 알람을 못 울린다
   stopSearch();
   state.queue = {};
   state.candKey = '';
@@ -421,6 +424,7 @@ $('cancel-request').addEventListener('click', () => state.search?.cancelRequest(
 function renderIncoming() {
   const req = state.search ? state.incoming[0] : null;
   if (!req) {
+    if (state.shownIncoming) stopAlarm();   // 신청이 취소되거나 시간이 지났다
     $('incoming').hidden = true;
     state.shownIncoming = null;
     return;
@@ -451,6 +455,7 @@ function updateIncomingCountdown() {
 async function answerIncoming(accept) {
   const ctl = state.search;
   const req = state.incoming[0];
+  stopAlarm();
   if (!ctl || !req) return;
   $('approve-btn').disabled = true;
   $('decline-btn').disabled = true;
@@ -680,6 +685,7 @@ function applyDecision() {
 }
 
 async function decide(choice) {
+  stopAlarm();
   if (!state.room) return;
   $('pass-btn').disabled = true;
   $('accept-btn').disabled = true;
@@ -704,6 +710,7 @@ function searchAgainSoon() {
 
 // 대화가 끝났을 때 (넘기기, 나가기, 상대가 나감)
 function finishChat() {
+  stopAlarm();
   state.phase = 'over';
   clearInterval(state.proposeTimer);
   $('timer').hidden = true;
