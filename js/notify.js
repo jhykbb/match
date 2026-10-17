@@ -162,6 +162,36 @@ export function stopAlarm() {
   clearSystemNotifications();
 }
 
+// 새 메시지처럼 가벼운 알림: 띵 한 번 + 짧은 진동. 화면을 안 보고 있으면 탭 제목과 시스템 알림까지
+export function ping(title, body) {
+  if (audio) {
+    try {
+      audio.resume?.();
+      const t = audio.currentTime;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 1175;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.3, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    } catch {}
+  }
+  try {
+    navigator.vibrate?.(150);
+  } catch {}
+  if (!document.hidden) return;
+  flashTitle(title);
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const options = { body, tag: 'message', renotify: true };
+  navigator.serviceWorker?.getRegistration()
+    .then(reg => (reg ? reg.showNotification(title, options) : new Notification(title, options)))
+    .catch(() => {});
+}
+
 export function notify(title, body) {
   stopAlarm();
   showOverlay(title, body);

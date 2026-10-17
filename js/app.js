@@ -9,7 +9,7 @@ import {
   surveySteps, surveyComplete, matchReasons, rankCandidates, maskBadWords, hasBadWords,
 } from './common.js';
 import * as store from './store.js';
-import { setupNotifications, primeNotifications, notify, stopAlarm, keepScreenOn } from './notify.js';
+import { setupNotifications, primeNotifications, notify, ping, stopAlarm, keepScreenOn } from './notify.js';
 
 const $ = id => document.getElementById(id);
 const PROFILE_KEY = 'match-profile';
@@ -541,11 +541,15 @@ function addSystem(text, big = false) {
   append(el, true);
 }
 
-function addMessage({ text, mine }) {
+function addMessage({ text, mine, at }) {
   const el = document.createElement('div');
   el.className = 'msg ' + (mine ? 'mine' : 'theirs');
   el.textContent = mine ? text : maskBadWords(text);
   append(el, mine);
+  // 방에 들어온 뒤에 상대가 보낸 메시지만 알린다 (다시 들어올 때 불러오는 예전 메시지는 빼고)
+  if (!mine && state.room && (at ?? 0) >= state.enteredAt) {
+    ping('💬 새 메시지', `${maskBadWords(state.room.partner.nick)}: ${maskBadWords(text)}`.slice(0, 120));
+  }
 }
 
 function resultCard(room) {
@@ -661,6 +665,7 @@ async function enterRoom(roomId) {
     return;
   }
   state.room = room;
+  state.enteredAt = room.now ? room.now() - 1000 : Date.now();
 
   $('partner-nick').textContent = maskBadWords(room.partner.nick);
   $('partner-sub').textContent = `${room.partner.age}살 · 궁합 ${room.score}%`;
