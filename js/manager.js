@@ -137,7 +137,6 @@ function lookup(id) {
 // ---------- 대기 중 ----------
 
 function waitStatus(entry) {
-  if (entry.away) return `💤 자리 비움 (${fmtWait(now() - entry.away)}째)`;
   if (entry.busy) return '💌 신청 보내는 중';
   const waited = now() - (entry.at || now());
   return waited < SEARCH_MS ? '💗 80% 찾는 중' : '📋 후보 고르는 중';
@@ -462,7 +461,7 @@ function renderRooms() {
       line.append(el('strong', '', `${maskBadWords(p?.nick || '익명')} · ${p?.age ?? '?'}살` + (names[id] || info.name ? ` (${names[id] || info.name})` : '')));
       if (!s.chatting) {
         if (d === 'accept') line.append(el('span', 'm-ok', '💬 문자해보기'));
-        else if (!r.joined?.[id]) line.append(el('span', 'm-away', '📵 아직 안 봄'));
+        else if (!r.joined?.[id]) line.append(el('span', 'm-away', '📵 아직 확인 전'));
         else line.append(el('span', 'muted', '고르는 중…'));
       }
       if (info.phone) line.append(phoneLink(info.phone));
@@ -472,7 +471,7 @@ function renderRooms() {
     const status = s.chatting ? s.text : `${s.text} · ${fmtWait(left)} 남음`;
     row.append(top, person(r.a), person(r.b), el('p', 'm-status', status));
     if (!s.chatting && (!r.joined?.[r.a] || !r.joined?.[r.b])) {
-      row.append(el('p', 'muted m-hint', '📵 표시된 사람에게 "짝을 찾았어요! 사이트에 들어가서 문자해보기를 눌러 주세요"라고 문자해 주세요.'));
+      row.append(el('p', 'muted m-hint', '📵 표시된 사람에게 "짝을 찾았어요! 링크로 다시 들어와서 문자해보기를 눌러 주세요"라고 문자해 주세요.'));
     }
     return row;
   }));

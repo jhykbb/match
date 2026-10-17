@@ -207,14 +207,15 @@ export function search(profile, handlers) {
       setTimeout(() => handlers.onMatched(roomId));
       return;
     }
-    // 사이트를 닫아도 대기열에서 빠지지 않는다. "자리 비움"만 표시하고, 보내던 신청은 접는다
-    offs.push(onValue(ref(db, '.info/connected'), snap => {
-      if (!snap.val() || searching !== token) return;
-      onDisconnect(queueMeRef).update({ away: serverTimestamp(), busy: null }).catch(() => {});
-      if (queue[uid]?.away) update(queueMeRef, { away: null }).catch(() => {});
-    }));
-    await onDisconnect(incomingRef).remove();
+    // 사이트를 닫아도 아무것도 바뀌지 않는다. 대기열 자리·보낸 신청·받은 신청이 그대로 남고,
+    // 켜 둔 사람과 똑같이 매칭된다. 대기열에서 빠지는 건 "매칭 그만두기"를 눌렀을 때뿐이다
     const before = (await get(queueMeRef).catch(() => null))?.val();
+    if (before?.kicked) {
+      searching = null;
+      stop({ forget: true });
+      handlers.onKicked?.();
+      return;
+    }
     await set(privateRef, {
       name: profile.name || '',
       phone: profile.phone || '',
@@ -225,6 +226,7 @@ export function search(profile, handlers) {
       blocked: profile.blocked || {},
       history: profile.history || {},
       at: before?.at ?? serverTimestamp(),   // 나갔다 와도 5분은 이어서 흐른다
+      ...(before?.busy ? { busy: true } : {}),   // 보내 둔 신청도 그대로
     });
     if (searching !== token) {
       remove(queueMeRef);
@@ -268,12 +270,27 @@ export function search(profile, handlers) {
     },
 
     // 후보에게 신청한다. 'declined' | 'timeout' | 'cancel' 로 끝난다. 수락되면 onMatched가 불린다
+    // 후보에게 신청한다. 응답 기한(서버 시각)을 돌려준다. 결과는 watchRequest로 기다린다
     async request(to, score) {
-      if (outgoing || searching !== token) return 'cancel';
+      if (outgoing || searching !== token) return null;
       await update(queueMeRef, { busy: true });
+      await set(ref(db, `requests/${to}/${uid}`), { ...publicProfile(me), score, at: serverTimestamp() });
+      return serverNow() + CONFIG.requestSeconds * 1000;
+    },
+
+    // 보낸 신청의 결과를 기다린다: 'declined' | 'timeout' | 'cancel'. 수락되면 onMatched가 불린다.
+    // 사이트를 닫았다 다시 들어와도 같은 신청을 이어서 기다린다
+    async watchRequest(to, deadline) {
+      if (outgoing || searching !== token) return 'cancel';
       const reqRef = ref(db, `requests/${to}/${uid}`);
-      await onDisconnect(reqRef).remove();
-      await set(reqRef, { ...publicProfile(me), score, at: serverTimestamp() });
+      const exists = (await get(reqRef).catch(() => null))?.exists();
+      if (searching !== token) return 'cancel';
+      if (!exists) {
+        // 나가 있는 사이 거절됐다 (수락이었다면 방으로 먼저 갔다)
+        await restart();
+        return 'declined';
+      }
+      await update(queueMeRef, { busy: true });
 
       return new Promise(resolve => {
         let seen = false;
@@ -297,7 +314,7 @@ export function search(profile, handlers) {
             // 신청이 지워졌다 = 거절. 수락이면 match가 먼저 와서 outgoing이 이미 비어 있다
             if (seen) setTimeout(() => finish('declined'), 1500);
           }),
-          timer: setTimeout(() => finish('timeout'), CONFIG.requestSeconds * 1000),
+          timer: setTimeout(() => finish('timeout'), Math.max(0, deadline - serverNow())),
         };
       });
     },

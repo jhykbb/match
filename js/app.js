@@ -18,6 +18,7 @@ const BLOCKED_KEY = 'match-blocked';
 const HISTORY_KEY = 'match-history';
 const RESUME_KEY = 'match-resume';   // 대기 중이었다 → 다시 들어오면 이어서 기다린다
 const ROOM_KEY = 'match-room';       // 들어가 있던 방 → 다시 들어오면 그 방으로
+const OUTGOING_KEY = 'match-outgoing'; // 보내 둔 신청 { to, nick, deadline } → 다시 들어오면 이어서 기다린다
 const MIN_SEND_GAP = 400;
 const SEARCH_MS = CONFIG.searchMinutes * 60000;
 const RESULT_REASONS = 8;
@@ -327,6 +328,8 @@ function startSearch() {
   });
   state.waitTimer = setInterval(renderWait, 500);
   renderWait();
+  const outgoing = loadJson(OUTGOING_KEY, null);
+  if (outgoing?.to && outgoing.deadline) waitForAnswer(state.search, outgoing.to, outgoing.nick || '상대', outgoing.deadline);
 }
 
 function endSearchUi() {
@@ -345,6 +348,7 @@ function stopSearch() {
 function forgetResume() {
   try {
     storage.removeItem(RESUME_KEY);
+    storage.removeItem(OUTGOING_KEY);
   } catch {}
 }
 
@@ -376,9 +380,7 @@ function renderWait() {
     return;
   }
   showWaitPart('pick');
-  const list = rankCandidates(state.queue, myProfile(ctl.uid))
-    .filter(c => !c.entry.away)   // 자리 비운 사람은 신청에 바로 답할 수 없다
-    .slice(0, CONFIG.candidateCount);
+  const list = rankCandidates(state.queue, myProfile(ctl.uid)).slice(0, CONFIG.candidateCount);
   const key = list.map(c => `${c.uid}:${c.score}`).join(',');
   if (key === state.candKey) return;
   state.candKey = key;
@@ -418,19 +420,41 @@ async function requestTo(c) {
   if (!ctl || state.pending) return;
   state.pending = { nick: c.entry.nick, until: Date.now() + CONFIG.requestSeconds * 1000 };
   renderWait();
+  let deadline = null;
+  try {
+    deadline = await ctl.request(c.uid, c.score);
+  } catch (err) {
+    console.error(err);
+  }
+  if (!deadline) {
+    state.pending = null;
+    if (state.search === ctl) toast('신청하지 못했어요. 다시 시도해 주세요.');
+    renderWait();
+    return;
+  }
+  saveJson(OUTGOING_KEY, { to: c.uid, nick: c.entry.nick, deadline });
+  waitForAnswer(ctl, c.uid, c.entry.nick, deadline);
+}
+
+async function waitForAnswer(ctl, to, nick, deadline) {
+  state.pending = { nick, until: Date.now() + (deadline - ctl.now()) };
+  renderWait();
   let result;
   try {
-    result = await ctl.request(c.uid, c.score);
+    result = await ctl.watchRequest(to, deadline);
   } catch (err) {
     console.error(err);
     result = 'error';
   }
   if (state.search !== ctl) return;   // 그사이 매칭됐다
+  try {
+    storage.removeItem(OUTGOING_KEY);
+  } catch {}
   state.pending = null;
   state.candKey = '';
   if (result === 'declined' || result === 'timeout') {
     // 거절한 사람은 후보에 다시 안 나온다
-    state.history = { ...state.history, [c.uid]: true };
+    state.history = { ...state.history, [to]: true };
     saveJson(HISTORY_KEY, state.history);
     toast(result === 'declined'
       ? `상대가 거절했어요. 다시 ${CONFIG.searchMinutes}분 동안 찾을게요.`
@@ -446,7 +470,8 @@ $('cancel-request').addEventListener('click', () => state.search?.cancelRequest(
 // ---------- 받은 신청 ----------
 
 function renderIncoming() {
-  const req = state.search ? state.incoming[0] : null;
+  const fresh = state.incoming.filter(r => (r.at ?? 0) + CONFIG.requestSeconds * 1000 > (state.search?.now() ?? Date.now()));
+  const req = state.search ? fresh[0] : null;
   if (!req) {
     if (state.shownIncoming) stopAlarm();   // 신청이 취소되거나 시간이 지났다
     $('incoming').hidden = true;
@@ -455,7 +480,7 @@ function renderIncoming() {
   }
   if (state.shownIncoming === req.from) return;
   state.shownIncoming = req.from;
-  notify('💌 매칭 신청이 왔어요!', `${maskBadWords(req.nick || '익명')}님이 신청했어요. 1분 안에 답해 주세요.`);
+  notify('💌 매칭 신청이 왔어요!', `${maskBadWords(req.nick || '익명')}님이 신청했어요. ${Math.round(CONFIG.requestSeconds / 60)}분 안에 답해 주세요.`);
   $('incoming-nick').textContent = maskBadWords(req.nick || '익명');
   $('incoming-age').textContent = req.age;
   $('incoming-score').textContent = req.score ?? 0;
@@ -471,14 +496,14 @@ function renderIncoming() {
 }
 
 function updateIncomingCountdown() {
-  const req = state.incoming[0];
+  const req = state.incoming.find(r => r.from === state.shownIncoming);
   if (!req || $('incoming').hidden || !state.search) return;
   $('incoming-left').textContent = fmt((req.at ?? 0) + CONFIG.requestSeconds * 1000 - state.search.now());
 }
 
 async function answerIncoming(accept) {
   const ctl = state.search;
-  const req = state.incoming[0];
+  const req = state.incoming.find(r => r.from === state.shownIncoming);
   stopAlarm();
   if (!ctl || !req) return;
   $('approve-btn').disabled = true;
@@ -565,6 +590,9 @@ function setFooter(which) {
 
 async function enterRoom(roomId) {
   saveJson(ROOM_KEY, roomId);
+  try {
+    storage.removeItem(OUTGOING_KEY);
+  } catch {}
   state.lastRoom = null;
   state.decision = null;
   messagesEl.replaceChildren();

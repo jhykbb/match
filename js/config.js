@@ -15,7 +15,7 @@ export const CONFIG = {
   searchMinutes: 5,
   autoMatchScore: 80,
   candidateCount: 3,
-  requestSeconds: 60,   // 신청에 응답을 기다리는 시간
+  requestSeconds: 600,  // 신청에 응답을 기다리는 시간 (사이트를 닫아 둔 사람도 문자 보고 들어올 수 있게)
   proposeSeconds: 600,  // 짝이 정해진 뒤 문자해보기/넘기기를 고르는 시간 (지나면 넘기기).
                         // 사이트를 닫아 둔 사람에게 운영진이 문자할 시간을 주려고 넉넉히 잡았다
 
