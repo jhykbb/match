@@ -982,6 +982,11 @@ function afterEnter() {
 }
 
 async function main() {
+  document.title = '신청 접수 종료';
+  show('closed');
+  return;
+
+  // 신청 접수 종료 상태에서는 매칭 서버에 연결하거나 신청을 받지 않습니다.
   document.title = CONFIG.siteTitle || '💘';
   setupNotifications();
   const fill = (attr, value) => {
