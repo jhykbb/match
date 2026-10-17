@@ -620,14 +620,7 @@ async function enterRoom(roomId) {
       },
       onPartnerLeft: () => {
         if (state.phase === 'over') return;
-        if (state.phase === 'propose') {
-          addSystem('상대가 나갔어요. 다시 찾을게요.');
-          finishChat();
-          searchAgainSoon();
-        } else {
-          addSystem('상대가 대화를 나갔어요.');
-          finishChat();
-        }
+        backToWaiting(state.phase === 'propose' ? '상대가 나갔어요. 다시 찾을게요.' : '상대가 대화를 나갔어요. 다시 찾을게요.');
       },
       onDecision: decision => {
         state.decision = decision;
@@ -649,10 +642,7 @@ async function enterRoom(roomId) {
     toast('방에 들어가지 못했어요.');
   }
   if (!room) {
-    if (state.phase !== 'over') {
-      finishChat();
-      searchAgainSoon();
-    }
+    if (state.phase !== 'over') backToWaiting('상대가 나갔어요. 다시 찾을게요.');
     return;
   }
   state.lastRoom = room;
@@ -715,9 +705,7 @@ function startProposeTimer() {
     if (!mine) {
       decide('pass');
     } else if (mine === 'accept' && !theirs) {
-      addSystem(`상대가 시간 안에 답하지 않았어요. 다시 ${CONFIG.searchMinutes}분 동안 찾을게요.`);
-      finishChat();
-      searchAgainSoon();
+      backToWaiting('상대가 시간 안에 답하지 않았어요. 다시 찾을게요.');
     }
   };
   tick();
@@ -728,13 +716,9 @@ function applyDecision() {
   const { mine, theirs } = state.decision || {};
   if (!state.room || state.phase !== 'propose') return;
   if (mine === 'pass') {
-    addSystem(`넘겼어요. 다시 ${CONFIG.searchMinutes}분 동안 찾을게요.`);
-    finishChat();
-    searchAgainSoon();
+    backToWaiting('넘겼어요. 다시 찾을게요.');
   } else if (theirs === 'pass') {
-    addSystem(`아쉽게도 상대가 넘겼어요. 다시 ${CONFIG.searchMinutes}분 동안 찾을게요.`);
-    finishChat();
-    searchAgainSoon();
+    backToWaiting('아쉽게도 상대가 넘겼어요. 다시 찾을게요.');
   } else if (mine === 'accept' && theirs === 'accept') {
     state.phase = 'accepted';
     clearInterval(state.proposeTimer);
@@ -771,10 +755,12 @@ async function decide(choice) {
 $('accept-btn').addEventListener('click', () => decide('accept'));
 $('pass-btn').addEventListener('click', () => decide('pass'));
 
-function searchAgainSoon() {
-  setTimeout(() => {
-    if (state.phase === 'over' && !$('screen-chat').hidden) startSearch();
-  }, 1800);
+// 매칭이 끝나면(넘기기, 대화 끝내기, 상대가 나감, 시간 초과, 차단) 고를 것 없이 바로 다시 기다린다.
+// 대기열에서 빠지는 건 "매칭 그만두기"를 눌렀을 때뿐이다
+function backToWaiting(message) {
+  if (message) toast(message);
+  finishChat();
+  startSearch();
 }
 
 // 대화가 끝났을 때 (넘기기, 나가기, 상대가 나감)
@@ -848,8 +834,7 @@ $('leave-btn').addEventListener('click', () => {
 
 $('dlg-leave').addEventListener('close', () => {
   if ($('dlg-leave').returnValue !== 'leave' || state.phase === 'over') return;
-  addSystem('대화를 끝냈어요.');
-  finishChat();
+  backToWaiting('대화를 끝냈어요. 다시 찾을게요.');
 });
 
 $('report-btn').addEventListener('click', () => {
@@ -874,11 +859,9 @@ $('dlg-report').addEventListener('close', async () => {
   }
   state.blocked = { ...state.blocked, [room.partnerUid]: true };
   saveJson(BLOCKED_KEY, state.blocked);
-  if (state.phase !== 'over') {
-    addSystem(action === 'report' ? '신고하고 차단했어요.' : '차단했어요.');
-    finishChat();
-  }
-  toast('이 사람과는 다시 이어지지 않아요.');
+  const done = `${action === 'report' ? '신고하고 차단했어요' : '차단했어요'}. 이 사람과는 다시 이어지지 않아요.`;
+  if (state.phase !== 'over') backToWaiting(done);
+  else toast(done);
 });
 
 $('next-btn').addEventListener('click', startSearch);
@@ -890,10 +873,6 @@ $('home-btn').addEventListener('click', () => {
 // ---------- 입장 ----------
 
 function afterEnter() {
-  store.watchWaiting(({ m, f }) => {
-    $('wait-m').textContent = m;
-    $('wait-f').textContent = f;
-  });
   showIntro();
 }
 
