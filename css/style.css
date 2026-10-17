@@ -742,3 +742,17 @@ a.m-phone:active { opacity: 0.7; }
 }
 .guide-note b { color: var(--accent); }
 #screen-wait .guide-note { max-width: 420px; }
+
+/* 대화 끝에 "이 사람으로 선택" */
+.pick-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-top: 1px solid var(--line);
+}
+.pick-text { flex: 1; margin: 0; font-size: 13px; line-height: 1.4; word-break: keep-all; }
+.pick-bar .btn { flex: none; padding: 10px 14px; font-size: 14px; }
+.system a { color: var(--accent); font-weight: 800; }
+.m-insta { font-size: 13px; font-weight: 700; color: #c13584; text-decoration: none; padding: 2px 8px; border-radius: 999px; background: #fbe7f1; white-space: nowrap; }
