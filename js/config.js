@@ -6,7 +6,7 @@ export const CONFIG = {
   nameMaxLength: 10,
   maxMessageLength: 500,
 
-  searchMinutes: 10,
+  searchMinutes: 15,
   autoMatchScore: 90,
   candidateCount: 3,
   requestSeconds: 600,
