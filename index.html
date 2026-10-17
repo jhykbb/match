@@ -23,7 +23,7 @@
         <ol class="howto">
           <li>간단한 취향 설문을 해요</li>
           <li><span data-minutes></span>분 동안 궁합 <span data-score></span>% 이상인 상대를 찾아요</li>
-          <li>찾으면 서로 <b>승낙</b>하면 대화 시작!</li>
+          <li>찾으면 둘 다 <b>💬 문자해보기</b>를 누르면 이어져요</li>
           <li>없으면 가장 잘 맞는 <span data-count></span>명 중 한 명에게 <b>신청</b>해요</li>
           <li>매칭되면 서로의 이름이 공개돼요</li>
         </ol>
@@ -52,7 +52,7 @@
             <input id="nick-input" type="text" autocomplete="off" required>
           </label>
           <label class="field">
-            <span>이름 <small class="muted">둘 다 승낙해야만 공개돼요</small></span>
+            <span>이름 <small class="muted">매칭이 성사돼야만 공개돼요</small></span>
             <input id="name-input" type="text" autocomplete="off" required>
           </label>
           <label class="field">
@@ -110,7 +110,8 @@
       </div>
 
       <p class="muted">지금 기다리는 사람 · 남 <span id="wait-m">0</span> · 여 <span id="wait-f">0</span></p>
-      <p class="muted small-note">🔔 알림을 허용하면 다른 앱을 보고 있어도 매칭되면 알려 줘요.</p>
+      <p class="muted small-note">📱 사이트를 닫아도 대기는 계속돼요. 짝이 생기면 운영진이 문자로 알려 드려요.</p>
+      <p class="muted small-note">🔔 알림을 허용하면 사이트를 켜 둔 동안 바로 알려 줘요.</p>
       <button id="cancel-search" class="btn ghost" type="button">그만 찾기</button>
     </section>
 
@@ -138,7 +139,7 @@
         <p id="decide-text" class="decide-text"></p>
         <div class="row">
           <button id="pass-btn" class="btn ghost" type="button">넘기기</button>
-          <button id="accept-btn" class="btn primary" type="button">💕 승낙</button>
+          <button id="accept-btn" class="btn primary" type="button">💬 문자해보기</button>
         </div>
       </div>
 

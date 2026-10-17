@@ -43,7 +43,11 @@
 
       <!-- 대기 중 -->
       <div id="tab-queue" class="m-panel">
-        <p class="muted m-hint">두 명을 골라 강제 매칭할 수 있어요. 강제 매칭돼도 둘 다 승낙해야 이름이 공개돼요.</p>
+        <label class="m-auto">
+          <input id="auto-match" type="checkbox" checked>
+          <span><b>자동 매칭</b> · 사이트를 닫아 둔 사람끼리도 궁합 80% 이상이면 이 화면이 대신 이어 줘요 (이 화면을 켜 두세요)</span>
+        </label>
+        <p class="muted m-hint">두 명을 골라 강제 매칭할 수 있어요. 강제 매칭돼도 둘 다 "문자해보기"를 눌러야 이름이 공개돼요.</p>
         <div id="queue-list" class="m-list"></div>
         <p id="queue-empty" class="muted m-empty">기다리는 사람이 없어요.</p>
       </div>
