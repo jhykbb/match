@@ -61,6 +61,10 @@
             <input id="phone-input" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-1234-5678" required>
           </label>
           <label class="field">
+            <span>인스타그램 아이디 <small class="muted">(선택) 대화 후 서로 "이 사람으로 선택"하면 상대에게 알려 줘요</small></span>
+            <input id="insta-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="@아이디">
+          </label>
+          <label class="field">
             <span>나이</span>
             <input id="age-input" type="number" inputmode="numeric" required>
           </label>
@@ -142,6 +146,11 @@
           <button id="pass-btn" class="btn ghost" type="button">넘기기</button>
           <button id="accept-btn" class="btn primary" type="button">💬 문자해보기</button>
         </div>
+      </div>
+
+      <div id="pick-bar" class="pick-bar" hidden>
+        <p id="pick-text" class="pick-text"></p>
+        <button id="pick-btn" class="btn primary" type="button">💕 이 사람으로 선택</button>
       </div>
 
       <form id="send-form" class="composer">

@@ -94,6 +94,18 @@
             ".validate": "newData.isString() && newData.val().beginsWith('data:image/') && newData.val().length <= 80000"
           }
         },
+        "picks": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('a').val()).val() == 'accept' && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('b').val()).val() == 'accept'",
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "instas": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('picks').child(root.child('rooms').child($room).child('a').val()).val() == true && root.child('rooms').child($room).child('picks').child(root.child('rooms').child($room).child('b').val()).val() == true",
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          }
+        },
         "names": {
           "$uid": {
             ".write": "auth != null && auth.uid == $uid && (root.child('rooms').child($room).child('a').val() == auth.uid || root.child('rooms').child($room).child('b').val() == auth.uid) && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('a').val()).val() == 'accept' && root.child('rooms').child($room).child('decide').child(root.child('rooms').child($room).child('b').val()).val() == 'accept'",
