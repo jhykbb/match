@@ -443,6 +443,40 @@ input:focus { border-color: var(--accent); }
   color: var(--text);
 }
 .dialog::backdrop { background: rgba(20, 8, 14, 0.45); }
+
+#dlg-privacy {
+  width: min(520px, calc(100% - 28px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+#dlg-privacy .privacy-copy {
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: left;
+  max-height: 34dvh;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg, rgba(120, 120, 120, 0.08));
+}
+#dlg-privacy .privacy-copy p { margin: 0 0 10px; }
+#dlg-privacy .privacy-copy p:last-child { margin-bottom: 0; }
+#dlg-privacy .privacy-check { margin: 0; }
+#dlg-privacy .privacy-check > span {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+#dlg-privacy input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--accent);
+}
+
 .dlg-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
 .dialog .row { display: flex; gap: 8px; margin-top: 18px; }
 .dialog .row .btn { flex: 1; }
