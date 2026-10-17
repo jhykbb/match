@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#e8578a">
+  <title>💘</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="app">
+    <section id="screen-loading" class="screen center">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="muted">불러오는 중…</p>
+    </section>
+
+    <!-- 처음 화면 -->
+    <section id="screen-intro" class="screen center" hidden>
+      <div class="card">
+        <div class="hero" aria-hidden="true">💘</div>
+        <h1 class="logo" data-title></h1>
+        <p class="muted" data-subtitle></p>
+        <ol class="howto">
+          <li>간단한 취향 설문을 해요</li>
+          <li><span data-minutes></span>분 동안 궁합 <span data-score></span>% 이상인 상대를 찾아요</li>
+          <li>찾으면 둘 다 <b>💬 문자해보기</b>를 누르면 이어져요 (넘기면 바로 다음 상대를 찾아요)</li>
+          <li>없으면 가장 잘 맞는 <span data-count></span>명 중 한 명에게 <b>신청</b>해요</li>
+          <li>매칭되면 서로의 이름이 공개돼요</li>
+        </ol>
+        <div class="stack">
+          <button id="start-btn" class="btn primary big" type="button">설문 시작하기</button>
+          <button id="resume-btn" class="btn primary big" type="button" hidden>이전 설문으로 매칭하기</button>
+          <button id="redo-btn" class="btn ghost" type="button" hidden>설문 다시 하기</button>
+        </div>
+        <p class="guide-note">📷 QR은 폰 카메라로 찍어 주세요. 나갔다 다시 들어올 때도 <b>같은 방법</b>으로 들어와야 이어서 할 수 있어요. (다른 앱으로 열면 처음부터 다시 해야 해요)</p>
+      </div>
+    </section>
+
+    <!-- 기본 정보 -->
+    <section id="screen-profile" class="screen center" hidden>
+      <div class="card">
+        <p class="step-label">기본 정보</p>
+        <form id="profile-form" class="stack">
+          <div class="avatar-pick">
+            <button id="photo-btn" class="avatar xl" type="button" aria-label="프로필 사진 고르기"></button>
+            <span class="photo-badge" aria-hidden="true">📷</span>
+            <input id="photo-input" type="file" accept="image/*" hidden>
+            <small class="muted">사진은 매칭이 성사돼야만 공개돼요</small>
+            <button id="photo-clear" class="link-btn" type="button" hidden>기본 이미지로</button>
+          </div>
+          <label class="field">
+            <span>닉네임 <small class="muted">상대에게 보여요</small></span>
+            <input id="nick-input" type="text" autocomplete="off" required>
+          </label>
+          <label class="field">
+            <span>이름 <small class="muted">매칭이 성사돼야만 공개돼요</small></span>
+            <input id="name-input" type="text" autocomplete="off" required>
+          </label>
+          <label class="field">
+            <span>전화번호 <small class="muted">운영진만 볼 수 있어요</small></span>
+            <input id="phone-input" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-1234-5678" required>
+          </label>
+          <label class="field">
+            <span>인스타그램 아이디 <small class="muted">(선택) 대화 후 서로 "이 사람으로 선택"하면 상대에게 알려 줘요</small></span>
+            <input id="insta-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="@아이디">
+          </label>
+          <label class="field">
+            <span>나이</span>
+            <input id="age-input" type="number" inputmode="numeric" required>
+          </label>
+          <div class="field">
+            <span>성별</span>
+            <div class="seg" role="radiogroup">
+              <label><input type="radio" name="gender" value="m" required><span>남자</span></label>
+              <label><input type="radio" name="gender" value="f"><span>여자</span></label>
+            </div>
+          </div>
+          <button class="btn primary big" type="submit">다음</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 설문 (한 장에 한 문항) -->
+    <section id="screen-survey" class="screen center" hidden>
+      <div class="card">
+        <div class="progress"><div id="survey-bar"></div></div>
+        <p id="survey-count" class="step-label"></p>
+        <h2 id="survey-title" class="question"></h2>
+        <div id="survey-options" class="options"></div>
+        <button id="survey-back" class="btn ghost small" type="button">이전</button>
+      </div>
+    </section>
+
+    <!-- 짝 찾는 중: 1) 90% 찾기  2) 후보 고르기  3) 신청 응답 기다리기 -->
+    <section id="screen-wait" class="screen center" hidden>
+      <div id="wait-search" class="wait-part">
+        <div class="heart-beat" aria-hidden="true">💗</div>
+        <p class="wait-title">궁합 <span data-score></span>% 이상인 상대를 찾고 있어요</p>
+        <p class="muted"><b id="wait-left" class="countdown"></b> 뒤에도 없으면 가장 잘 맞는 후보를 보여 줄게요</p>
+      </div>
+
+      <div id="wait-pick" class="wait-part" hidden>
+        <p class="wait-title">아직 <span data-score></span>% 이상인 상대가 없어요</p>
+        <p class="muted">가장 잘 맞는 후보예요. 마음에 드는 사람에게 신청해 보세요!</p>
+        <div id="cand-list" class="cand-list"></div>
+        <p id="cand-empty" class="muted cand-empty" hidden>아직 후보가 없어요. 새로운 사람이 오면 바로 보여 줄게요.</p>
+        <p class="muted small-note">그사이 <span data-score></span>% 이상인 사람이 오면 바로 이어 줘요.</p>
+      </div>
+
+      <div id="wait-pending" class="wait-part" hidden>
+        <div class="heart-beat" aria-hidden="true">💌</div>
+        <p class="wait-title"><span id="pending-nick"></span>님에게 신청했어요</p>
+        <p class="muted">응답을 기다리는 중… <b id="pending-left" class="countdown"></b></p>
+        <button id="cancel-request" class="btn ghost" type="button">신청 취소</button>
+      </div>
+
+      <p class="muted small-note">📱 사이트를 닫아도 대기는 계속돼요. 짝이 생기면 운영진이 문자로 알려 드려요.</p>
+      <p class="guide-note">📷 QR은 폰 카메라로 찍어 주세요. 나갔다 다시 들어올 때도 <b>같은 방법</b>으로 들어와야 이어서 할 수 있어요. (다른 앱으로 열면 처음부터 다시 해야 해요)</p>
+      <p class="muted small-note">🔔 알림을 허용하면 사이트를 켜 둔 동안 바로 알려 줘요.</p>
+      <button id="cancel-search" class="btn ghost" type="button">매칭 그만두기</button>
+    </section>
+
+    <!-- 채팅 -->
+    <section id="screen-chat" class="screen chat" hidden>
+      <header class="chat-head">
+        <button id="leave-btn" class="icon-btn" type="button" aria-label="나가기">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div id="partner-avatar" class="avatar sm"></div>
+        <div class="partner">
+          <strong id="partner-nick"></strong>
+          <span id="partner-sub" class="muted"></span>
+        </div>
+        <span id="timer" class="timer" hidden></span>
+        <button id="report-btn" class="icon-btn" type="button" aria-label="신고·차단">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 21V4m0 0h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </header>
+
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <div id="typing" class="typing" hidden><span></span><span></span><span></span></div>
+
+      <div id="decide-bar" class="decide-bar" hidden>
+        <p id="decide-text" class="decide-text"></p>
+        <div class="row">
+          <button id="pass-btn" class="btn ghost" type="button">넘기기</button>
+          <button id="accept-btn" class="btn primary" type="button">💬 문자해보기</button>
+        </div>
+      </div>
+
+      <div id="pick-bar" class="pick-bar" hidden>
+        <p id="pick-text" class="pick-text"></p>
+        <button id="pick-btn" class="btn primary" type="button">💕 이 사람으로 선택</button>
+      </div>
+
+      <form id="send-form" class="composer">
+        <input id="msg-input" type="text" autocomplete="off" enterkeyhint="send" placeholder="메시지 입력">
+        <button class="btn primary" type="submit">전송</button>
+      </form>
+
+      <div id="ended-bar" class="ended-bar" hidden>
+        <button id="next-btn" class="btn primary" type="button">다음 상대 찾기</button>
+        <button id="home-btn" class="btn ghost" type="button">처음으로</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg-privacy" class="dialog">
+    <form id="privacy-form" method="dialog" class="stack">
+      <p class="dlg-title">개인정보 수집·이용 동의</p>
+      <p class="muted">서비스 이용 전에 아래 내용을 확인해 주세요.</p>
+      <div class="privacy-copy">
+        <p><b>1. 수집 항목</b><br>이름, 전화번호, 나이, 성별, 닉네임, 프로필 사진(선택), 설문 응답, 서비스 내 채팅 내용</p>
+        <p><b>2. 이용 목적</b><br>연애 궁합 분석 및 상대 매칭, 매칭 관련 안내, 서비스 운영과 신고·차단 처리</p>
+        <p><b>3. 공개 및 제공</b><br>전화번호는 운영진이 매칭 안내를 위해 확인합니다. 이름은 매칭 성사 시 상대에게 공개됩니다. 채팅 후 서로 ‘이 사람으로 선택’을 누르면 인스타그램 아이디가 서로에게 공개됩니다.</p>
+        <p><b>4. 인스타그램 아이디</b><br>입력은 선택 사항이며, 입력하지 않아도 이용할 수 있습니다. 입력한 아이디는 서로 선택한 경우에만 상대에게 공개됩니다.</p>
+        <p><b>5. 보유 및 삭제</b><br>정보는 매칭 서비스 운영에 필요한 동안 이용됩니다. 삭제를 요청하거나 이용 목적이 끝난 정보는 확인 후 삭제 처리합니다. 단, 법령상 보관이 필요한 경우는 예외입니다.</p>
+        <p><b>6. 동의 거부</b><br>개인정보 수집·이용에 동의하지 않을 수 있지만, 필수 정보 이용에 동의하지 않으면 매칭 서비스를 이용할 수 없습니다.</p>
+      </div>
+      <label class="field privacy-check">
+        <span><input id="privacy-required" type="checkbox" required> 필수 개인정보 수집·이용에 동의합니다.</span>
+      </label>
+      <div class="row">
+        <button class="btn ghost" type="button" id="privacy-cancel">동의하지 않음</button>
+        <button class="btn primary" type="button" id="privacy-accept">동의하고 계속</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-leave" class="dialog">
+    <form method="dialog">
+      <p class="dlg-title">대화를 끝낼까요?</p>
+      <p class="muted">끝내면 이 상대와는 다시 이어지지 않고, 바로 다음 상대를 찾아요.</p>
+      <div class="row">
+        <button class="btn ghost" value="cancel">계속 대화</button>
+        <button class="btn danger" value="leave">끝내기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-report" class="dialog">
+    <form method="dialog">
+      <p class="dlg-title">신고·차단</p>
+      <p class="muted">대화가 바로 끝나고, 다시 이어지지 않아요.</p>
+      <div class="reasons">
+        <label><input type="radio" name="reason" value="욕설/비하" checked> 욕설·비하</label>
+        <label><input type="radio" name="reason" value="성희롱/음란"> 성희롱·음란</label>
+        <label><input type="radio" name="reason" value="스팸/광고"> 스팸·광고</label>
+        <label><input type="radio" name="reason" value="개인정보 요구"> 개인정보 요구</label>
+        <label><input type="radio" name="reason" value="기타"> 기타</label>
+      </div>
+      <div class="stack">
+        <button class="btn danger" value="report">신고하고 차단</button>
+        <button class="btn ghost" value="block">차단만 하기</button>
+        <button class="btn ghost" value="cancel">취소</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 받은 매칭 신청 -->
+  <div id="incoming" class="overlay" hidden>
+    <div class="card incoming-card" role="alertdialog" aria-labelledby="incoming-title">
+      <div class="hero" aria-hidden="true">💌</div>
+      <p id="incoming-title" class="dlg-title">매칭 신청이 왔어요!</p>
+      <p class="incoming-who"><b id="incoming-nick"></b> · <span id="incoming-age"></span>살</p>
+      <div class="score">궁합 <span id="incoming-score"></span><small>%</small></div>
+      <ul id="incoming-reasons" class="reason-chips"></ul>
+      <p class="muted">수락하면 바로 매칭되고 서로의 이름이 공개돼요. <b id="incoming-left" class="countdown"></b></p>
+      <div class="row">
+        <button id="decline-btn" class="btn ghost" type="button">거절</button>
+        <button id="approve-btn" class="btn primary" type="button">💕 수락</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
