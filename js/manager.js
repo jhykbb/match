@@ -100,11 +100,27 @@ function confirmButton(text, confirmText, className, onConfirm) {
 }
 
 // 전화번호를 누르면 폰 문자 앱이 그 번호로 열린다
-function phoneLink(phone) {
-  const a = el('a', 'm-phone', `💬 ${phone}`);
-  a.href = `sms:${String(phone).replace(/\D/g, '')}`;
+// 전화번호를 누르면 폰 문자 앱이 그 번호로 열린다. body를 주면 내용까지 채워진다 (전송만 누르면 된다)
+const SITE_URL = 'jhykbb.github.io/match';
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+function smsHref(phone, body) {
+  const to = String(phone).replace(/\D/g, '');
+  if (!body) return `sms:${to}`;
+  return `sms:${to}${IS_IOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
+}
+
+function phoneLink(phone, body) {
+  const a = el('a', 'm-phone', `${body ? '📩' : '💬'} ${phone}`);
+  a.href = smsHref(phone, body);
+  if (body) a.title = body;
   a.addEventListener('click', ev => ev.stopPropagation());
   return a;
+}
+
+// 짝이 정해졌는데 아직 안 고른 사람에게 보낼 문자
+function foundSms(nick) {
+  return `[취향 매칭] ${nick}님 짝을 찾았어요! 💘 ${Math.round(CONFIG.proposeSeconds / 60)}분 안에 아래 링크로 들어와서 "문자해보기"를 눌러 주세요 👉 ${SITE_URL}`;
 }
 
 function fmtWait(ms) {
@@ -464,7 +480,8 @@ function renderRooms() {
         else if (!r.joined?.[id]) line.append(el('span', 'm-away', '📵 아직 확인 전'));
         else line.append(el('span', 'muted', '고르는 중…'));
       }
-      if (info.phone) line.append(phoneLink(info.phone));
+      // 아직 안 고른 사람에게는 "짝을 찾았어요" 문자가 채워진다
+      if (info.phone) line.append(phoneLink(info.phone, !s.chatting && d !== 'accept' ? foundSms(p?.nick || '') : null));
       return line;
     };
     const left = (r.at || now()) + CONFIG.proposeSeconds * 1000 - now();
