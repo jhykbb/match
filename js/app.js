@@ -791,10 +791,12 @@ function startProposeTimer() {
 function applyDecision() {
   const { mine, theirs } = state.decision || {};
   if (!state.room || state.phase !== 'propose') return;
-  if (mine === 'pass') {
-    backToWaiting('넘겼어요. 다시 찾을게요.');
-  } else if (theirs === 'pass') {
-    backToWaiting('아쉽게도 상대가 넘겼어요. 다시 찾을게요.');
+  if (mine === 'pass' || theirs === 'pass') {
+    // 신청 종료 후 이미 접속해 있던 사용자도 넘기기 처리 시 종료 안내를 보게 한다.
+    stopSearch();
+    forgetResume();
+    clearInterval(state.proposeTimer);
+    show('closed');
   } else if (mine === 'accept' && theirs === 'accept') {
     state.phase = 'accepted';
     clearInterval(state.proposeTimer);
