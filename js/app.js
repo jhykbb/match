@@ -16,6 +16,8 @@ const PROFILE_KEY = 'match-profile';
 const ANSWERS_KEY = 'match-answers';
 const BLOCKED_KEY = 'match-blocked';
 const HISTORY_KEY = 'match-history';
+const RESUME_KEY = 'match-resume';   // 대기 중이었다 → 다시 들어오면 이어서 기다린다
+const ROOM_KEY = 'match-room';       // 들어가 있던 방 → 다시 들어오면 그 방으로
 const MIN_SEND_GAP = 400;
 const SEARCH_MS = CONFIG.searchMinutes * 60000;
 const RESULT_REASONS = 8;
@@ -288,6 +290,7 @@ function startSearch() {
   if (!profileValid(state.profile) || !surveyComplete(state.answers)) return showIntro();
   primeNotifications();
   keepScreenOn(true);   // 기다리는 동안 화면이 꺼지면 알람을 못 울린다
+  saveJson(RESUME_KEY, true);
   stopSearch();
   state.queue = {};
   state.candKey = '';
@@ -311,6 +314,7 @@ function startSearch() {
       toast('운영자가 내 정보를 고쳤어요.');
     },
     onKicked: () => {
+      forgetResume();
       endSearchUi();
       toast('운영자가 대기열에서 내보냈어요.');
       showIntro();
@@ -338,7 +342,14 @@ function stopSearch() {
   endSearchUi();
 }
 
+function forgetResume() {
+  try {
+    storage.removeItem(RESUME_KEY);
+  } catch {}
+}
+
 $('cancel-search').addEventListener('click', () => {
+  forgetResume();
   stopSearch();
   showIntro();
 });
@@ -365,7 +376,9 @@ function renderWait() {
     return;
   }
   showWaitPart('pick');
-  const list = rankCandidates(state.queue, myProfile(ctl.uid)).slice(0, CONFIG.candidateCount);
+  const list = rankCandidates(state.queue, myProfile(ctl.uid))
+    .filter(c => !c.entry.away)   // 자리 비운 사람은 신청에 바로 답할 수 없다
+    .slice(0, CONFIG.candidateCount);
   const key = list.map(c => `${c.uid}:${c.score}`).join(',');
   if (key === state.candKey) return;
   state.candKey = key;
@@ -551,6 +564,7 @@ function setFooter(which) {
 }
 
 async function enterRoom(roomId) {
+  saveJson(ROOM_KEY, roomId);
   state.lastRoom = null;
   state.decision = null;
   messagesEl.replaceChildren();
@@ -628,7 +642,7 @@ async function enterRoom(roomId) {
   if (room.mode !== 'request') {
     showDecideBar(false);
     startProposeTimer();
-    notify('💘 매칭됐어요!', `${maskBadWords(room.partner.nick)}님과 궁합 ${room.score}%! 승낙할지 골라 주세요.`);
+    notify('💘 짝을 찾았어요!', `${maskBadWords(room.partner.nick)}님과 궁합 ${room.score}%! "문자해보기"를 누를지 골라 주세요.`);
   }
   applyDecision();
 }
@@ -636,10 +650,10 @@ async function enterRoom(roomId) {
 function showDecideBar(waiting) {
   setFooter('decide');
   $('decide-text').textContent = waiting
-    ? '승낙했어요! 상대의 선택을 기다리는 중…'
+    ? '문자해보기를 눌렀어요! 상대의 선택을 기다리는 중… (사이트를 닫아도 괜찮아요)'
     : state.room?.mode === 'admin'
-      ? '운영자가 짝을 이어 줬어요! 둘 다 승낙하면 대화가 시작돼요.'
-      : `궁합 ${CONFIG.autoMatchScore}% 이상인 상대를 찾았어요! 둘 다 승낙하면 대화가 시작돼요.`;
+      ? '운영자가 짝을 이어 줬어요! 둘 다 "문자해보기"를 누르면 이어져요.'
+      : `궁합 ${CONFIG.autoMatchScore}% 이상인 상대를 찾았어요! 둘 다 "문자해보기"를 누르면 이어져요.`;
   $('accept-btn').hidden = waiting;
   $('pass-btn').textContent = waiting ? '넘기기로 바꾸기' : '넘기기';
   $('pass-btn').disabled = false;
@@ -649,7 +663,9 @@ function showDecideBar(waiting) {
 // 정해진 시간 안에 고르지 않으면 넘기기로 처리한다
 function startProposeTimer() {
   clearInterval(state.proposeTimer);
-  const deadline = Date.now() + CONFIG.proposeSeconds * 1000;
+  const room = state.room;
+  const now = () => (room?.now ? room.now() : Date.now());
+  const deadline = (room?.startAt || now()) + CONFIG.proposeSeconds * 1000;
   const el = $('timer');
   el.hidden = false;
   const tick = () => {
@@ -658,10 +674,18 @@ function startProposeTimer() {
       el.hidden = true;
       return;
     }
-    const left = deadline - Date.now();
+    const left = deadline - now();
     el.textContent = fmt(left);
-    el.className = 'timer' + (left <= 15000 ? ' low' : '');
-    if (left <= 0 && !state.decision?.mine) decide('pass');
+    el.className = 'timer' + (left <= 60000 ? ' low' : '');
+    if (left > 0) return;
+    const { mine, theirs } = state.decision || {};
+    if (!mine) {
+      decide('pass');
+    } else if (mine === 'accept' && !theirs) {
+      addSystem(`상대가 시간 안에 답하지 않았어요. 다시 ${CONFIG.searchMinutes}분 동안 찾을게요.`);
+      finishChat();
+      searchAgainSoon();
+    }
   };
   tick();
   state.proposeTimer = setInterval(tick, 500);
@@ -683,7 +707,8 @@ function applyDecision() {
     clearInterval(state.proposeTimer);
     $('timer').hidden = true;
     setFooter('chat');
-    addSystem('🎉 매칭 성사! 이제 대화해 보세요', true);
+    addSystem('🎉 둘 다 문자해보기를 눌렀어요! 곧 운영진이 문자로 연락드려요. 그동안 여기서 대화해도 돼요', true);
+    forgetResume();   // 성사됐으니 다시 들어와도 자동으로 찾지 않는다
     // 성사 알람은 띄우지 않는다. 운영진이 매니저 페이지의 번호로 직접 문자한다
     state.room.revealName(state.profile.name).catch(err => console.error(err));
     if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
@@ -722,6 +747,9 @@ function searchAgainSoon() {
 // 대화가 끝났을 때 (넘기기, 나가기, 상대가 나감)
 function finishChat() {
   stopAlarm();
+  try {
+    storage.removeItem(ROOM_KEY);
+  } catch {}
   state.phase = 'over';
   clearInterval(state.proposeTimer);
   $('timer').hidden = true;
@@ -777,7 +805,10 @@ $('send-form').addEventListener('submit', async e => {
 });
 
 $('leave-btn').addEventListener('click', () => {
-  if (state.phase === 'over') return showIntro();
+  if (state.phase === 'over') {
+    forgetResume();
+    return showIntro();
+  }
   $('dlg-leave').returnValue = '';
   $('dlg-leave').showModal();
 });
@@ -818,7 +849,10 @@ $('dlg-report').addEventListener('close', async () => {
 });
 
 $('next-btn').addEventListener('click', startSearch);
-$('home-btn').addEventListener('click', showIntro);
+$('home-btn').addEventListener('click', () => {
+  forgetResume();
+  showIntro();
+});
 
 // ---------- 입장 ----------
 
@@ -846,6 +880,9 @@ async function main() {
   try {
     await store.init();
     afterEnter();
+    const savedRoom = loadJson(ROOM_KEY, null);
+    if (savedRoom) enterRoom(savedRoom);
+    else if (loadJson(RESUME_KEY, false) && profileValid(state.profile) && surveyComplete(state.answers)) startSearch();
   } catch (err) {
     console.error(err);
     $('screen-loading').querySelector('p').textContent = '연결하지 못했어요. 새로고침해 주세요.';

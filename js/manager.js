@@ -9,7 +9,7 @@ import {
   getDatabase, ref, get, set, update, remove, push, onValue, runTransaction, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 import { CONFIG } from './config.js';
-import { compatibility, maskBadWords, matchReasons, surveySteps } from './common.js';
+import { compatibility, maskBadWords, matchReasons, surveySteps, pickPartner } from './common.js';
 
 const $ = id => document.getElementById(id);
 const app = initializeApp(CONFIG.firebase);
@@ -137,6 +137,7 @@ function lookup(id) {
 // ---------- 대기 중 ----------
 
 function waitStatus(entry) {
+  if (entry.away) return `💤 자리 비움 (${fmtWait(now() - entry.away)}째)`;
   if (entry.busy) return '💌 신청 보내는 중';
   const waited = now() - (entry.at || now());
   return waited < SEARCH_MS ? '💗 80% 찾는 중' : '📋 후보 고르는 중';
@@ -277,7 +278,7 @@ $('pair-go').addEventListener('click', async () => {
 
 // 두 사람을 대기열에서 한 번에 빼고(트랜잭션) 방을 만든 뒤 둘 다에게 알린다.
 // 승낙/넘기기 단계부터 시작하니, 둘 다 승낙해야 이름·사진이 공개된다.
-async function forceMatch(a, b) {
+async function forceMatch(a, b, mode = 'admin') {
   let ea = null;
   let eb = null;
   const result = await runTransaction(ref(db, 'queue'), q => {
@@ -297,7 +298,7 @@ async function forceMatch(a, b) {
     b,
     at: serverTimestamp(),
     score: compatibility(ea.answers, eb.answers),
-    mode: 'admin',
+    mode,
     profiles: { [a]: pub(ea), [b]: pub(eb) },
   });
   await set(ref(db, `match/${a}`), roomRef.key);
@@ -430,7 +431,7 @@ function roomStatus(room) {
   if (d[room.a] === 'pass' || d[room.b] === 'pass') return { text: '넘김', done: true };
   if (left[room.a] || left[room.b]) return { text: '나감', done: true };
   if (d[room.a] === 'accept' && d[room.b] === 'accept') return { text: '💬 성사 · 대화 중', done: false, chatting: true };
-  return { text: '승낙/넘기기 고르는 중', done: false };
+  return { text: '문자해보기/넘기기 고르는 중', done: false };
 }
 
 const MODE = { auto: '자동 80%', request: '신청', admin: '운영자 매칭' };
@@ -455,13 +456,24 @@ function renderRooms() {
     const person = id => {
       const p = r.profiles?.[id];
       const d = r.decide?.[id];
+      const info = state.private[id] || {};
       const line = el('div', 'm-person');
       line.append(el('span', `m-gender ${p?.gender}`, GENDER[p?.gender] || '?'));
-      line.append(el('strong', '', `${maskBadWords(p?.nick || '익명')} · ${p?.age ?? '?'}살` + (names[id] ? ` (${names[id]})` : '')));
-      if (!s.chatting) line.append(el('span', d === 'accept' ? 'm-ok' : 'muted', d === 'accept' ? '✅ 승낙' : '고르는 중…'));
+      line.append(el('strong', '', `${maskBadWords(p?.nick || '익명')} · ${p?.age ?? '?'}살` + (names[id] || info.name ? ` (${names[id] || info.name})` : '')));
+      if (!s.chatting) {
+        if (d === 'accept') line.append(el('span', 'm-ok', '💬 문자해보기'));
+        else if (!r.joined?.[id]) line.append(el('span', 'm-away', '📵 아직 안 봄'));
+        else line.append(el('span', 'muted', '고르는 중…'));
+      }
+      if (info.phone) line.append(phoneLink(info.phone));
       return line;
     };
-    row.append(top, person(r.a), person(r.b), el('p', 'm-status', s.text));
+    const left = (r.at || now()) + CONFIG.proposeSeconds * 1000 - now();
+    const status = s.chatting ? s.text : `${s.text} · ${fmtWait(left)} 남음`;
+    row.append(top, person(r.a), person(r.b), el('p', 'm-status', status));
+    if (!s.chatting && (!r.joined?.[r.a] || !r.joined?.[r.b])) {
+      row.append(el('p', 'muted m-hint', '📵 표시된 사람에게 "짝을 찾았어요! 사이트에 들어가서 문자해보기를 눌러 주세요"라고 문자해 주세요.'));
+    }
     return row;
   }));
 }
@@ -547,6 +559,34 @@ for (const tab of document.querySelectorAll('.m-tab')) {
     $('pair-bar').hidden = tab.dataset.tab !== 'queue' || state.selected.length !== 2;
   });
 }
+
+// ---------- 자동 매칭 ----------
+// 참가자 폰은 사이트를 켜 둔 동안에만 스스로 짝을 찾는다. 둘 다 닫아 둔 경우엔 이 화면이 대신 이어 준다.
+let autoBusy = false;
+async function autoMatch() {
+  if (!state.started || autoBusy || !$('auto-match').checked) return;
+  const entries = Object.entries(state.queue)
+    .filter(([, e]) => e && !e.kicked && !e.busy)
+    .sort(([, x], [, y]) => (x.at || 0) - (y.at || 0));
+  for (const [id, e] of entries) {
+    const partner = pickPartner(state.queue, { ...e, uid: id }, CONFIG.autoMatchScore);
+    if (!partner) continue;
+    autoBusy = true;
+    try {
+      await forceMatch(id, partner.uid, 'auto');
+      toast(`자동 매칭: ${maskBadWords(e.nick)} 💘 ${maskBadWords(partner.entry.nick)} (${partner.score}%)`);
+    } catch (err) {
+      console.warn('자동 매칭 건너뜀', err);
+    } finally {
+      autoBusy = false;
+    }
+    return;   // 한 번에 한 쌍씩
+  }
+}
+setInterval(() => autoMatch().catch(err => console.warn(err)), 4000);
+
+// 남은 시간 표시를 위해 진행 중 매칭도 10초마다 다시 그린다
+setInterval(() => { if (state.started) renderRooms(); }, 10000);
 
 // 대기 시간은 1초마다 글자만 바꾼다 (목록을 다시 그리면 체크가 풀리니까)
 setInterval(() => {

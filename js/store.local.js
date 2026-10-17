@@ -351,6 +351,8 @@ export async function openRoom(roomId, handlers) {
     me: room.profiles?.[uid] || { answers: {} },
     score: room.score ?? 0,
     mode: room.mode || 'auto',
+    startAt: room.at,
+    now: () => Date.now(),
 
     async send(text) {
       const now = Date.now();

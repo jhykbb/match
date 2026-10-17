@@ -29,12 +29,12 @@ const app = initializeApp(CONFIG.firebase);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-const PARTNER_JOIN_TIMEOUT = 15000;
 const RETRY_MS = 3000;
 
 let uid = null;
 let serverOffset = 0;
 let searching = null;   // 지금 짝을 찾는 중이면 { onMatched, stop }
+let pendingMatch = null; // 자리를 비운 사이 잡힌 매칭. 다시 찾기를 시작하면 바로 그 방으로 간다
 
 const serverNow = () => Date.now() + serverOffset;
 
@@ -75,8 +75,8 @@ function startSession() {
       stop();
       onMatched(roomId);
     } else {
-      // 찾기를 그만둔 직후에 잡힌 경우: 상대가 기다리지 않게 바로 나간다
-      set(ref(db, `rooms/${roomId}/left/${uid}`), true).catch(() => {});
+      // 사이트를 닫아 둔 사이 잡혔다: 다시 찾기를 시작하면 그 방으로 보낸다
+      pendingMatch = roomId;
     }
   });
 }
@@ -123,17 +123,17 @@ export function search(profile, handlers) {
     onDisconnect(reqRef).cancel();
   };
 
-  const stop = () => {
+  // 대기열에서 빠진다. 매칭돼서 빠질 때는 실명·번호(private)를 남겨 둔다 (운영진이 문자할 때 쓴다)
+  const stop = ({ forget = false } = {}) => {
     offs.forEach(off => off());
     offs = [];
     clearInterval(timer);
     clearOutgoing();
     remove(queueMeRef).catch(() => {});
     remove(incomingRef).catch(() => {});   // 받은 신청은 모두 거절로 처리된다
-    remove(privateRef).catch(() => {});
+    if (forget) remove(privateRef).catch(() => {});
     onDisconnect(queueMeRef).cancel();
     onDisconnect(incomingRef).cancel();
-    onDisconnect(privateRef).cancel();
   };
 
   const token = { onMatched: handlers.onMatched, stop };
@@ -199,9 +199,22 @@ export function search(profile, handlers) {
   };
 
   (async () => {
-    await onDisconnect(queueMeRef).remove();
+    // 자리를 비운 사이 이미 짝이 정해졌으면 그 방으로 바로 간다
+    if (pendingMatch) {
+      const roomId = pendingMatch;
+      pendingMatch = null;
+      searching = null;
+      setTimeout(() => handlers.onMatched(roomId));
+      return;
+    }
+    // 사이트를 닫아도 대기열에서 빠지지 않는다. "자리 비움"만 표시하고, 보내던 신청은 접는다
+    offs.push(onValue(ref(db, '.info/connected'), snap => {
+      if (!snap.val() || searching !== token) return;
+      onDisconnect(queueMeRef).update({ away: serverTimestamp(), busy: null }).catch(() => {});
+      if (queue[uid]?.away) update(queueMeRef, { away: null }).catch(() => {});
+    }));
     await onDisconnect(incomingRef).remove();
-    await onDisconnect(privateRef).remove();
+    const before = (await get(queueMeRef).catch(() => null))?.val();
     await set(privateRef, {
       name: profile.name || '',
       phone: profile.phone || '',
@@ -211,7 +224,7 @@ export function search(profile, handlers) {
       ...publicProfile(me),
       blocked: profile.blocked || {},
       history: profile.history || {},
-      at: serverTimestamp(),
+      at: before?.at ?? serverTimestamp(),   // 나갔다 와도 5분은 이어서 흐른다
     });
     if (searching !== token) {
       remove(queueMeRef);
@@ -223,7 +236,7 @@ export function search(profile, handlers) {
       // 매니저가 대기열에서 내보냈다
       if (mine?.kicked) {
         searching = null;
-        stop();
+        stop({ forget: true });
         handlers.onKicked?.();
         return;
       }
@@ -247,10 +260,11 @@ export function search(profile, handlers) {
     // 이번 5분이 시작된 시각 (서버 시간)
     startAt: () => queue[uid]?.at ?? localStart,
 
+    // 사용자가 "그만 찾기"를 눌렀다
     stop() {
       if (searching !== token) return;
       searching = null;
-      stop();
+      stop({ forget: true });
     },
 
     // 후보에게 신청한다. 'declined' | 'timeout' | 'cancel' 로 끝난다. 수락되면 onMatched가 불린다
@@ -335,23 +349,17 @@ export async function openRoom(roomId, handlers) {
   }
   const partnerUid = room.a === uid ? room.b : room.a;
   const leftRef = ref(db, `${base}/left/${uid}`);
-  await onDisconnect(leftRef).set(true);
   await set(ref(db, `${base}/joined/${uid}`), true);
 
   const log = [];
   const offs = [];
   let closed = false;
   let ended = false;
-  let partnerJoined = false;
   let passed = false;
-  let joinTimer = null;
 
   const end = () => {
     if (ended) return;
     ended = true;
-    clearTimeout(joinTimer);
-    // 상대가 나갔으니 내가 창을 닫으면 방(대화 기록)도 지워지게 한다
-    onDisconnect(ref(db, base)).remove();
     handlers.onPartnerLeft();
   };
 
@@ -372,15 +380,10 @@ export async function openRoom(roomId, handlers) {
   offs.push(onValue(ref(db, `${base}/photos/${partnerUid}`), snap => {
     if (snap.val()) handlers.onPartnerPhoto(snap.val());
   }));
-  offs.push(onValue(ref(db, `${base}/joined/${partnerUid}`), snap => {
-    if (!snap.val()) return;
-    partnerJoined = true;
-    clearTimeout(joinTimer);
-  }));
+  // 상대가 나갔거나 방이 지워졌다(읽을 수 없게 됨)
   offs.push(onValue(ref(db, `${base}/left/${partnerUid}`), snap => {
     if (snap.val()) end();
-  }));
-  joinTimer = setTimeout(() => { if (!partnerJoined) end(); }, PARTNER_JOIN_TIMEOUT);
+  }, () => end()));
 
   return {
     partnerUid,
@@ -388,6 +391,8 @@ export async function openRoom(roomId, handlers) {
     me: room.profiles?.[uid] || { answers: {} },
     score: room.score ?? 0,
     mode: room.mode || 'auto',
+    startAt: room.at,
+    now: serverNow,
 
     async send(text) {
       const id = push(ref(db, `${base}/msgs`)).key;
@@ -437,10 +442,8 @@ export async function openRoom(roomId, handlers) {
     async leave() {
       if (closed) return;
       closed = true;
-      clearTimeout(joinTimer);
       offs.forEach(off => off());
       await set(leftRef, true).catch(() => {});
-      onDisconnect(leftRef).cancel();
       // 둘 다 나갔거나 누가 넘겼으면 방을 지운다 = 대화 기록 삭제
       const partnerLeft = ended || passed || (await get(ref(db, `${base}/left/${partnerUid}`)).catch(() => null))?.val();
       if (partnerLeft) await remove(ref(db, base)).catch(() => {});

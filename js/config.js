@@ -8,14 +8,16 @@ export const CONFIG = {
 
   // 매칭 방식
   //   설문이 끝나면 searchMinutes분 동안 궁합 autoMatchScore% 이상인 상대를 찾는다.
-  //   찾으면 서로 승낙/넘기기를 고르고, 둘 다 승낙하면 이름 공개 + 대화 시작.
+  //   찾으면 서로 문자해보기/넘기기를 고르고, 둘 다 문자해보기면 이름 공개 + 대화 시작.
+  //   대기 중에 사이트를 닫아도 대기열에 남는다("자리 비움"). 다시 들어오면 이어서 기다린다.
   //   못 찾으면 지금 기다리는 사람 중 궁합이 높은 candidateCount명을 보여 주고, 한 명에게 신청한다.
   //   신청받은 사람이 수락하면 바로 성사. 거절·무응답이면 다시 searchMinutes분 찾는다.
   searchMinutes: 5,
   autoMatchScore: 80,
   candidateCount: 3,
   requestSeconds: 60,   // 신청에 응답을 기다리는 시간
-  proposeSeconds: 60,   // 80% 매칭 뒤 승낙/넘기기를 고르는 시간 (지나면 넘기기)
+  proposeSeconds: 600,  // 짝이 정해진 뒤 문자해보기/넘기기를 고르는 시간 (지나면 넘기기).
+                        // 사이트를 닫아 둔 사람에게 운영진이 문자할 시간을 주려고 넉넉히 잡았다
 
   // 나이 규칙: adultAge 미만은 미만끼리만(나이 차이 상관없음),
   // adultAge 이상은 이상끼리 adultMaxAgeGap살 차이까지만 매칭
