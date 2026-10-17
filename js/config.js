@@ -12,7 +12,7 @@ export const CONFIG = {
   //   대기 중에 사이트를 닫아도 대기열에 남는다("자리 비움"). 다시 들어오면 이어서 기다린다.
   //   못 찾으면 지금 기다리는 사람 중 궁합이 높은 candidateCount명을 보여 주고, 한 명에게 신청한다.
   //   신청받은 사람이 수락하면 바로 성사. 거절·무응답이면 다시 searchMinutes분 찾는다.
-  searchMinutes: 5,
+  searchMinutes: 10,
   autoMatchScore: 90,
   candidateCount: 3,
   requestSeconds: 600,  // 신청에 응답을 기다리는 시간 (사이트를 닫아 둔 사람도 문자 보고 들어올 수 있게)

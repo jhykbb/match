@@ -2,7 +2,7 @@
 // 모두 익명 로그인하고, 누가 무엇을 읽고 쓸 수 있는지는 database.rules.json이 서버에서 막는다.
 //
 // 데이터 구조
-//   queue/{uid}            짝을 기다리는 사람 (닉네임, 나이, 성별, 설문 답, at=이번 5분 시작, busy=신청 보내는 중)
+//   queue/{uid}            짝을 기다리는 사람 (닉네임, 나이, 성별, 설문 답, at=이번 10분 시작, busy=신청 보내는 중)
 //   requests/{받는}/{보낸}  매칭 신청
 //   match/{uid}            짝이 정해지면 상대가 여기에 방 id를 넣어 준다
 //   rooms/{id}             a, b, at, score, mode(auto|request), profiles, decide, names, photos, msgs, typing, joined, left
@@ -192,7 +192,7 @@ export function search(profile, handlers) {
     handlers.onError?.(new Error('연결이 불안정해요. 잠시 후 다시 시도해 주세요.'));
   }
 
-  // 새로 5분을 시작한다 (거절당했을 때, 응답이 없을 때)
+  // 새로 10분을 시작한다 (거절당했을 때, 응답이 없을 때)
   const restart = () => {
     localStart = serverNow();
     return update(queueMeRef, { at: serverTimestamp(), busy: null });
@@ -225,7 +225,7 @@ export function search(profile, handlers) {
       ...publicProfile(me),
       blocked: profile.blocked || {},
       history: profile.history || {},
-      at: before?.at ?? serverTimestamp(),   // 나갔다 와도 5분은 이어서 흐른다
+      at: before?.at ?? serverTimestamp(),   // 나갔다 와도 10분은 이어서 흐른다
       ...(before?.busy ? { busy: true } : {}),   // 보내 둔 신청도 그대로
     });
     if (searching !== token) {
@@ -259,7 +259,7 @@ export function search(profile, handlers) {
   return {
     uid,
     now: serverNow,
-    // 이번 5분이 시작된 시각 (서버 시간)
+    // 이번 10분이 시작된 시각 (서버 시간)
     startAt: () => queue[uid]?.at ?? localStart,
 
     // 사용자가 "그만 찾기"를 눌렀다
