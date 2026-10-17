@@ -165,6 +165,31 @@
     </section>
   </main>
 
+  <dialog id="dlg-privacy" class="dialog">
+    <form id="privacy-form" method="dialog" class="stack">
+      <p class="dlg-title">개인정보 수집·이용 동의</p>
+      <p class="muted">서비스 이용 전에 아래 내용을 확인해 주세요.</p>
+      <div class="privacy-copy">
+        <p><b>1. 수집 항목</b><br>이름, 전화번호, 나이, 성별, 닉네임, 프로필 사진(선택), 설문 응답, 서비스 내 채팅 내용</p>
+        <p><b>2. 이용 목적</b><br>연애 궁합 분석 및 상대 매칭, 매칭 관련 안내, 서비스 운영과 신고·차단 처리</p>
+        <p><b>3. 공개 및 제공</b><br>전화번호는 운영진이 매칭 안내를 위해 확인합니다. 이름은 매칭 성사 시 상대에게 공개됩니다. 채팅 후 서로 ‘이 사람으로 선택’을 누르면 인스타그램 아이디가 서로에게 공개됩니다.</p>
+        <p><b>4. 인스타그램 아이디</b><br>입력은 선택 사항이며, 입력하지 않아도 이용할 수 있습니다. 입력한 아이디는 서로 선택한 경우에만 상대에게 공개됩니다.</p>
+        <p><b>5. 보유 및 삭제</b><br>정보는 매칭 서비스 운영에 필요한 동안 이용됩니다. 삭제를 요청하거나 이용 목적이 끝난 정보는 확인 후 삭제 처리합니다. 단, 법령상 보관이 필요한 경우는 예외입니다.</p>
+        <p><b>6. 동의 거부</b><br>개인정보 수집·이용에 동의하지 않을 수 있지만, 필수 정보 이용에 동의하지 않으면 매칭 서비스를 이용할 수 없습니다.</p>
+      </div>
+      <label class="field privacy-check">
+        <span><input id="privacy-required" type="checkbox" required> 필수 개인정보 수집·이용에 동의합니다.</span>
+      </label>
+      <label class="field privacy-check">
+        <span><input id="privacy-insta" type="checkbox"> 선택 정보인 인스타그램 아이디 수집·이용에 동의합니다. (선택)</span>
+      </label>
+      <div class="row">
+        <button class="btn ghost" type="button" id="privacy-cancel">동의하지 않음</button>
+        <button class="btn primary" type="submit" value="accept">동의하고 계속</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="dlg-leave" class="dialog">
     <form method="dialog">
       <p class="dlg-title">대화를 끝낼까요?</p>
