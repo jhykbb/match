@@ -23,7 +23,7 @@
         <ol class="howto">
           <li>간단한 취향 설문을 해요</li>
           <li><span data-minutes></span>분 동안 궁합 <span data-score></span>% 이상인 상대를 찾아요</li>
-          <li>찾으면 둘 다 <b>💬 문자해보기</b>를 누르면 이어져요</li>
+          <li>찾으면 둘 다 <b>💬 문자해보기</b>를 누르면 이어져요 (넘기면 바로 다음 상대를 찾아요)</li>
           <li>없으면 가장 잘 맞는 <span data-count></span>명 중 한 명에게 <b>신청</b>해요</li>
           <li>매칭되면 서로의 이름이 공개돼요</li>
         </ol>
@@ -110,7 +110,6 @@
         <button id="cancel-request" class="btn ghost" type="button">신청 취소</button>
       </div>
 
-      <p class="muted">지금 기다리는 사람 · 남 <span id="wait-m">0</span> · 여 <span id="wait-f">0</span></p>
       <p class="muted small-note">📱 사이트를 닫아도 대기는 계속돼요. 짝이 생기면 운영진이 문자로 알려 드려요.</p>
       <p class="guide-note">📷 QR은 폰 카메라로 찍어 주세요. 나갔다 다시 들어올 때도 <b>같은 방법</b>으로 들어와야 이어서 할 수 있어요. (다른 앱으로 열면 처음부터 다시 해야 해요)</p>
       <p class="muted small-note">🔔 알림을 허용하면 사이트를 켜 둔 동안 바로 알려 줘요.</p>
@@ -160,7 +159,7 @@
   <dialog id="dlg-leave" class="dialog">
     <form method="dialog">
       <p class="dlg-title">대화를 끝낼까요?</p>
-      <p class="muted">끝내면 이 상대와는 다시 이어지지 않아요.</p>
+      <p class="muted">끝내면 이 상대와는 다시 이어지지 않고, 바로 다음 상대를 찾아요.</p>
       <div class="row">
         <button class="btn ghost" value="cancel">계속 대화</button>
         <button class="btn danger" value="leave">끝내기</button>
