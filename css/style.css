@@ -728,3 +728,17 @@ a.m-phone:active { opacity: 0.7; }
 }
 .m-auto input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; margin-top: 1px; }
 .m-person { flex-wrap: wrap; }
+
+.guide-note {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  word-break: keep-all;
+}
+.guide-note b { color: var(--accent); }
+#screen-wait .guide-note { max-width: 420px; }
