@@ -13,7 +13,7 @@ export const CONFIG = {
   //   못 찾으면 지금 기다리는 사람 중 궁합이 높은 candidateCount명을 보여 주고, 한 명에게 신청한다.
   //   신청받은 사람이 수락하면 바로 성사. 거절·무응답이면 다시 searchMinutes분 찾는다.
   searchMinutes: 5,
-  autoMatchScore: 80,
+  autoMatchScore: 90,
   candidateCount: 3,
   requestSeconds: 600,  // 신청에 응답을 기다리는 시간 (사이트를 닫아 둔 사람도 문자 보고 들어올 수 있게)
   proposeSeconds: 600,  // 짝이 정해진 뒤 문자해보기/넘기기를 고르는 시간 (지나면 넘기기).

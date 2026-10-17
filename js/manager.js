@@ -139,7 +139,7 @@ function lookup(id) {
 function waitStatus(entry) {
   if (entry.busy) return '💌 신청 보내는 중';
   const waited = now() - (entry.at || now());
-  return waited < SEARCH_MS ? '💗 80% 찾는 중' : '📋 후보 고르는 중';
+  return waited < SEARCH_MS ? `💗 ${CONFIG.autoMatchScore}% 찾는 중` : '📋 후보 고르는 중';
 }
 
 // 한 명을 고르면(기준) 그 사람은 맨 위, 나머지는 기준과의 궁합 높은 순. 이성이 먼저 온다
@@ -433,7 +433,7 @@ function roomStatus(room) {
   return { text: '문자해보기/넘기기 고르는 중', done: false };
 }
 
-const MODE = { auto: '자동 80%', request: '신청', admin: '운영자 매칭' };
+const MODE = { auto: `자동 ${CONFIG.autoMatchScore}%`, request: '신청', admin: '운영자 매칭' };
 
 function renderRooms() {
   const list = Object.entries(state.rooms)
