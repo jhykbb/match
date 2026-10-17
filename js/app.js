@@ -195,6 +195,14 @@ $('privacy-cancel').addEventListener('click', () => {
   $('dlg-privacy').close('decline');
 });
 
+$('privacy-accept').addEventListener('click', () => {
+  if (!$('privacy-required').checked) {
+    toast('계속하려면 필수 개인정보 수집·이용에 동의해 주세요.');
+    return;
+  }
+  $('dlg-privacy').close('accept');
+});
+
 $('dlg-privacy').addEventListener('close', () => {
   if ($('dlg-privacy').returnValue !== 'accept' || !$('privacy-required').checked) {
     afterPrivacyConsent = null;
