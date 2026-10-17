@@ -303,6 +303,8 @@ export async function openRoom(roomId, handlers) {
   let partnerJoined = false;
   let partnerName = null;
   let partnerPhoto = null;
+  let picksKey = '';
+  let partnerInsta = null;
   let decision = '';
   let ended = false;
   let closed = false;
@@ -339,6 +341,13 @@ export async function openRoom(roomId, handlers) {
     if (name && name !== partnerName) handlers.onPartnerName(partnerName = name);
     const photo = get(`${base}/photos/${partnerUid}`);
     if (photo && photo !== partnerPhoto) handlers.onPartnerPhoto(partnerPhoto = photo);
+    const picks = { mine: !!get(`${base}/picks/${uid}`), theirs: !!get(`${base}/picks/${partnerUid}`) };
+    if (JSON.stringify(picks) !== picksKey) {
+      picksKey = JSON.stringify(picks);
+      handlers.onPicks?.(picks);
+    }
+    const insta = get(`${base}/instas/${partnerUid}`);
+    if (insta !== null && insta !== partnerInsta) handlers.onPartnerInsta?.(partnerInsta = insta);
 
     if (get(`${base}/joined/${partnerUid}`)) partnerJoined = true;
     if (get(`${base}/left/${partnerUid}`) || (partnerJoined && !isAlive(partnerUid))) end();
@@ -377,6 +386,14 @@ export async function openRoom(roomId, handlers) {
     },
 
     async recordCouple() {},
+
+    async pick() {
+      set(`${base}/picks/${uid}`, true);
+    },
+
+    async revealInsta(id) {
+      if (get(`${base}/picks/${uid}`) && get(`${base}/picks/${partnerUid}`)) set(`${base}/instas/${uid}`, id || '');
+    },
 
     async revealPhoto(photo) {
       if (get(`${base}/decide/${uid}`) === 'accept' && get(`${base}/decide/${partnerUid}`) === 'accept') {

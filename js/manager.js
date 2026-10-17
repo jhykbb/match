@@ -123,6 +123,17 @@ function foundSms(nick) {
   return `[취향 매칭] ${nick}님 짝을 찾았어요! 💘 ${Math.round(CONFIG.proposeSeconds / 60)}분 안에 아래 링크로 들어와서 "문자해보기"를 눌러 주세요 👉 ${SITE_URL}`;
 }
 
+function instaLink(id) {
+  const clean = String(id || '').replace(/^@+/, '');
+  if (!clean) return null;
+  const a = el('a', 'm-insta', `📷 @${clean}`);
+  a.href = `https://instagram.com/${encodeURIComponent(clean)}`;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.addEventListener('click', ev => ev.stopPropagation());
+  return a;
+}
+
 function fmtWait(ms) {
   const sec = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
@@ -352,6 +363,7 @@ function fillPerson(id) {
   $('person-name').textContent = info.name ? `${info.name} (${maskBadWords(e.nick || '익명')})` : maskBadWords(e.nick || '익명');
   $('person-sub').textContent = `${GENDER[e.gender] || '?'} · ${e.age}살`;
   if (info.phone) $('person-sub').append(' · ', phoneLink(info.phone));
+  if (instaLink(info.insta)) $('person-sub').append(' · ', instaLink(info.insta));
   $('person-status').textContent = `${waitStatus(e)} · 대기 ${fmtWait(now() - (e.at || now()))}`;
 
   // 기준으로 고른 사람이 따로 있으면 그 사람과의 궁합
@@ -482,6 +494,7 @@ function renderRooms() {
       }
       // 아직 안 고른 사람에게는 "짝을 찾았어요" 문자가 채워진다
       if (info.phone) line.append(phoneLink(info.phone, !s.chatting && d !== 'accept' ? foundSms(p?.nick || '') : null));
+      if (s.chatting) line.append(el('span', r.picks?.[id] ? 'm-ok' : 'muted', r.picks?.[id] ? '💕 선택함' : '선택 전'));
       return line;
     };
     const left = (r.at || now()) + CONFIG.proposeSeconds * 1000 - now();
@@ -514,6 +527,7 @@ function renderCouples() {
         el('span', `m-gender ${p.gender}`, GENDER[p.gender] || '?'),
         el('strong', '', p.name || '이름 없음'),
         p.phone ? phoneLink(p.phone) : el('span'),
+        instaLink(p.insta) || el('span'),
         el('span', 'muted', `${maskBadWords(p.nick || '')} · ${p.age}살`),
       );
       row.append(line);

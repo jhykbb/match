@@ -219,6 +219,7 @@ export function search(profile, handlers) {
     await set(privateRef, {
       name: profile.name || '',
       phone: profile.phone || '',
+      insta: profile.insta || '',
       ...(typeof profile.photo === 'string' && profile.photo.startsWith('data:image/') ? { photo: profile.photo } : {}),
     }).catch(err => console.warn('매니저용 정보 저장 실패', err));
     await set(queueMeRef, {
@@ -397,6 +398,13 @@ export async function openRoom(roomId, handlers) {
   offs.push(onValue(ref(db, `${base}/photos/${partnerUid}`), snap => {
     if (snap.val()) handlers.onPartnerPhoto(snap.val());
   }));
+  offs.push(onValue(ref(db, `${base}/picks`), snap => {
+    const v = snap.val() || {};
+    handlers.onPicks?.({ mine: !!v[uid], theirs: !!v[partnerUid] });
+  }));
+  offs.push(onValue(ref(db, `${base}/instas/${partnerUid}`), snap => {
+    if (snap.exists()) handlers.onPartnerInsta?.(snap.val());
+  }));
   // 상대가 나갔거나 방이 지워졌다(읽을 수 없게 됨)
   offs.push(onValue(ref(db, `${base}/left/${partnerUid}`), snap => {
     if (snap.val()) end();
@@ -438,6 +446,16 @@ export async function openRoom(roomId, handlers) {
 
     async revealPhoto(photo) {
       await set(ref(db, `${base}/photos/${uid}`), photo);
+    },
+
+    // "이 사람으로 선택"
+    async pick() {
+      await set(ref(db, `${base}/picks/${uid}`), true);
+    },
+
+    // 서로 선택했을 때만 서버 규칙이 허락한다
+    async revealInsta(id) {
+      await set(ref(db, `${base}/instas/${uid}`), id || '');
     },
 
     // 성사 기록 (매니저 페이지에서 본다). 대화방이 지워져도 남는다

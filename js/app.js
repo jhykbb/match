@@ -84,6 +84,13 @@ function formatPhone(text) {
   return d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
+// 인스타 아이디: 앞의 @와 공백을 빼고 소문자로. 비우면 '', 쓸 수 없는 글자가 있으면 null
+function normInsta(text) {
+  const id = String(text || '').trim().replace(/^@+/, '').replace(/\s+/g, '').toLowerCase();
+  if (!id) return '';
+  return /^[a-z0-9._]{1,30}$/.test(id) ? id : null;
+}
+
 function profileValid(p) {
   return !!p && !!p.nick && !!p.name && !!formatPhone(p.phone) && Number.isInteger(p.age)
     && p.age >= CONFIG.minAge && p.age <= CONFIG.maxAge && (p.gender === 'm' || p.gender === 'f');
@@ -97,6 +104,7 @@ function saveProfileDraft() {
     nick: $('nick-input').value.trim().slice(0, CONFIG.nickMaxLength),
     name: $('name-input').value.trim().slice(0, CONFIG.nameMaxLength),
     phone: $('phone-input').value.trim().slice(0, 20),
+    insta: $('insta-input').value.trim().slice(0, 40),
     age: Number.isInteger(age) && age > 0 ? age : null,
     gender: document.querySelector('input[name="gender"]:checked')?.value || null,
     photo: isPhoto(state.photo) ? state.photo : null,
@@ -210,6 +218,7 @@ function showProfile() {
   $('nick-input').value = p.nick || '';
   $('name-input').value = p.name || '';
   $('phone-input').value = p.phone || '';
+  $('insta-input').value = p.insta ? `@${p.insta.replace(/^@+/, '')}` : '';
   $('age-input').value = p.age || '';
   for (const radio of document.querySelectorAll('input[name="gender"]')) radio.checked = radio.value === p.gender;
   show('profile');
@@ -231,9 +240,11 @@ $('profile-form').addEventListener('submit', e => {
   if (!name) return toast('이름을 적어 주세요.');
   const phone = formatPhone($('phone-input').value);
   if (!phone) return toast('전화번호를 확인해 주세요. (예: 010-1234-5678)');
+  const insta = normInsta($('insta-input').value);
+  if (insta === null) return toast('인스타 아이디를 확인해 주세요. (영문·숫자·마침표·밑줄만)');
   if (!Number.isInteger(age) || age < CONFIG.minAge || age > CONFIG.maxAge) return toast('나이를 확인해 주세요.');
   if (!gender) return toast('성별을 골라 주세요.');
-  state.profile = { nick, name, phone, age, gender, photo: isPhoto(state.photo) ? state.photo : null };
+  state.profile = { nick, name, phone, insta, age, gender, photo: isPhoto(state.photo) ? state.photo : null };
   saveJson(PROFILE_KEY, state.profile);
   // 설문을 하다 나갔으면 안 푼 문항부터, 다 풀었으면(다시 하기) 처음부터
   const next = STEPS.findIndex(step => !step.options.includes(state.answers[step.key]));
@@ -283,8 +294,8 @@ $('survey-back').addEventListener('click', () => {
 // ---------- 짝 찾기 ----------
 
 function myProfile(uid) {
-  const { nick, name, phone, age, gender, photo } = state.profile;
-  return { uid, nick, name, phone, age, gender, photo, answers: state.answers, blocked: state.blocked, history: state.history };
+  const { nick, name, phone, insta, age, gender, photo } = state.profile;
+  return { uid, nick, name, phone, insta: normInsta(insta) || '', age, gender, photo, answers: state.answers, blocked: state.blocked, history: state.history };
 }
 
 function startSearch() {
@@ -588,12 +599,16 @@ function resultCard(room) {
 function setFooter(which) {
   $('decide-bar').hidden = which !== 'decide';
   $('send-form').hidden = which !== 'chat';
+  $('pick-bar').hidden = which !== 'chat';
   $('ended-bar').hidden = which !== 'ended';
   if (which !== 'chat') $('typing').hidden = true;
 }
 
 async function enterRoom(roomId) {
   saveJson(ROOM_KEY, roomId);
+  state.picks = null;
+  state.instaShared = false;
+  state.partnerInstaShown = false;
   try {
     storage.removeItem(OUTGOING_KEY);
   } catch {}
@@ -631,6 +646,35 @@ async function enterRoom(roomId) {
         setAvatar($('partner-avatar'), src);
         const face = $('result-avatar');
         if (face) setAvatar(face, src);
+      },
+      onPicks: picks => {
+        state.picks = picks;
+        renderPickBar();
+        if (picks.mine && picks.theirs && !state.instaShared && state.room) {
+          state.instaShared = true;
+          addSystem('💕 서로 "이 사람으로 선택"을 눌렀어요!', true);
+          ping('💕 서로 선택했어요!', '상대 인스타 아이디를 확인해 보세요.');
+          state.room.revealInsta(normInsta(state.profile.insta) || '').catch(err => console.error(err));
+        }
+      },
+      onPartnerInsta: id => {
+        if (state.partnerInstaShown) return;
+        state.partnerInstaShown = true;
+        const el = document.createElement('div');
+        el.className = 'system big';
+        const clean = normInsta(id);
+        if (clean) {
+          el.append('상대 인스타: ');
+          const a = document.createElement('a');
+          a.href = `https://instagram.com/${clean}`;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = `@${clean}`;
+          el.append(a);
+        } else {
+          el.textContent = '상대가 인스타 아이디를 안 적었어요. 운영진에게 물어봐 주세요.';
+        }
+        append(el, true);
       },
       onPartnerName: name => {
         addSystem(`상대의 이름은 "${name}"이에요 💕`, true);
@@ -729,13 +773,42 @@ function applyDecision() {
     // 성사 알람은 띄우지 않는다. 운영진이 매니저 페이지의 번호로 직접 문자한다
     state.room.revealName(state.profile.name).catch(err => console.error(err));
     if (isPhoto(state.profile.photo)) state.room.revealPhoto(state.profile.photo).catch(err => console.error(err));
-    const { nick, name, phone, age, gender } = state.profile;
-    state.room.recordCouple({ nick, name, phone: phone || '', age, gender }).catch(err => console.error(err));
+    const { nick, name, phone, insta, age, gender } = state.profile;
+    state.room.recordCouple({ nick, name, phone: phone || '', insta: normInsta(insta) || '', age, gender }).catch(err => console.error(err));
+    renderPickBar();
     $('msg-input').focus();
   } else if (mine === 'accept') {
     showDecideBar(true);
   }
 }
+
+// "이 사람으로 선택": 한쪽만 누르면 상대에게 알리지 않는다. 둘 다 누르면 서로 인스타를 공개한다
+function renderPickBar() {
+  const { mine, theirs } = state.picks || {};
+  if (mine && theirs) {
+    $('pick-text').textContent = '💕 서로 선택했어요! 상대 인스타는 대화창에 떠요.';
+    $('pick-btn').hidden = true;
+  } else if (mine) {
+    $('pick-text').textContent = '선택했어요! 상대도 선택하면 서로 인스타 아이디를 알려 드려요.';
+    $('pick-btn').hidden = true;
+  } else {
+    $('pick-text').textContent = '대화해 보고 마음에 들면 눌러 주세요. 서로 누르면 인스타 아이디를 알려 드려요.';
+    $('pick-btn').hidden = false;
+  }
+}
+
+$('pick-btn').addEventListener('click', async () => {
+  if (!state.room || state.phase !== 'accepted') return;
+  $('pick-btn').disabled = true;
+  try {
+    await state.room.pick();
+  } catch (err) {
+    console.error(err);
+    toast('선택하지 못했어요. 다시 눌러 주세요.');
+  } finally {
+    $('pick-btn').disabled = false;
+  }
+});
 
 async function decide(choice) {
   stopAlarm();
