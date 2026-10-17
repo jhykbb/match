@@ -183,7 +183,6 @@ let afterPrivacyConsent = null;
 function requestPrivacyConsent(next) {
   afterPrivacyConsent = next;
   $('privacy-required').checked = false;
-  $('privacy-insta').checked = false;
   $('dlg-privacy').returnValue = '';
   $('dlg-privacy').showModal();
 }
