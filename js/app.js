@@ -178,9 +178,34 @@ function showIntro() {
   show('intro');
 }
 
-$('start-btn').addEventListener('click', showProfile);
-$('redo-btn').addEventListener('click', showProfile);
-$('resume-btn').addEventListener('click', startSearch);
+let afterPrivacyConsent = null;
+
+function requestPrivacyConsent(next) {
+  afterPrivacyConsent = next;
+  $('privacy-required').checked = false;
+  $('privacy-insta').checked = false;
+  $('dlg-privacy').returnValue = '';
+  $('dlg-privacy').showModal();
+}
+
+$('start-btn').addEventListener('click', () => requestPrivacyConsent(showProfile));
+$('redo-btn').addEventListener('click', () => requestPrivacyConsent(showProfile));
+$('resume-btn').addEventListener('click', () => requestPrivacyConsent(startSearch));
+
+$('privacy-cancel').addEventListener('click', () => {
+  $('dlg-privacy').close('decline');
+});
+
+$('dlg-privacy').addEventListener('close', () => {
+  if ($('dlg-privacy').returnValue !== 'accept' || !$('privacy-required').checked) {
+    afterPrivacyConsent = null;
+    toast('필수 개인정보 수집·이용에 동의해야 서비스를 이용할 수 있어요.');
+    return;
+  }
+  const next = afterPrivacyConsent;
+  afterPrivacyConsent = null;
+  if (typeof next === 'function') next();
+});
 
 // ---------- 기본 정보 ----------
 
