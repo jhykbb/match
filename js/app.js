@@ -18,6 +18,7 @@ const BLOCKED_KEY = 'match-blocked';
 const HISTORY_KEY = 'match-history';
 const RESUME_KEY = 'match-resume';   // 대기 중이었다 → 다시 들어오면 이어서 기다린다
 const ROOM_KEY = 'match-room';       // 들어가 있던 방 → 다시 들어오면 그 방으로
+const KICKED_KEY = 'match-kicked';   // 운영자가 내보낸 사용자는 이 기기에서 종료 안내를 유지
 const OUTGOING_KEY = 'match-outgoing'; // 보내 둔 신청 { to, nick, deadline } → 다시 들어오면 이어서 기다린다
 const MIN_SEND_GAP = 400;
 const SEARCH_MS = CONFIG.searchMinutes * 60000;
@@ -360,8 +361,9 @@ function startSearch() {
     onKicked: () => {
       forgetResume();
       endSearchUi();
-      toast('운영자가 대기열에서 내보냈어요.');
-      showIntro();
+      // 내보낸 사용자가 새로고침하거나 다시 접속해도 신청 종료 안내를 유지한다.
+      try { localStorage.setItem(KICKED_KEY, '1'); } catch {}
+      show('closed');
     },
     onError: err => {
       endSearchUi();
@@ -985,6 +987,12 @@ function afterEnter() {
 
 async function main() {
   document.title = '신청 접수 종료';
+  try {
+    if (localStorage.getItem(KICKED_KEY) === '1') {
+      show('closed');
+      return;
+    }
+  } catch {}
   show('closed');
   return;
 
